@@ -67,7 +67,18 @@
         const user = await getSessionUser();
         if (!user) return;
         await cloudSaveState(user.id, getStateFn());
-      } catch {}
+      } catch (e) {
+  console.error("Supabase load/save error:", e);
+  // fallback: якщо Google user є — створимо локального юзера, щоб не показувало overlay
+  if (!state.user) {
+    const name =
+      user.user_metadata?.full_name ||
+      user.email?.split("@")?.[0] ||
+      "User";
+    state.user = { name, xp:0, streak:1, lastDay:null, completed:{}, attempts:{}, spoiled:{}, drafts:{} };
+    save();
+  }
+}
     }, 900);
   }
   
@@ -221,21 +232,21 @@ function save() {
   // ===========================
   // Theme
   // ===========================
-  function applyTheme(theme) {
-    const t = theme === "light" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", t);
-    state.settings.theme = t;
-    save();
+function applyTheme(theme) {
+  const t = theme === "light" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", t);
+  state.settings.theme = t;
 
-    const icon = $("uiThemeIcon");
-    if (icon) icon.className = (t === "light") ? "ri-moon-line" : "ri-sun-line";
-  }
+  const icon = $("uiThemeIcon");
+  if (icon) icon.className = (t === "light") ? "ri-moon-line" : "ri-sun-line";
+}
 
-  function toggleTheme() {
-    const next = (state.settings.theme === "light") ? "dark" : "light";
-    applyTheme(next);
-    toast(next === "light" ? "🌞 Світла тема" : "🌙 Темна тема");
-  }
+function toggleTheme() {
+  const next = (state.settings.theme === "light") ? "dark" : "light";
+  applyTheme(next);
+  save(); // ← ТУТ ЗБЕРІГАЄМО, бо користувач реально змінив тему
+  toast(next === "light" ? "🌞 Світла тема" : "🌙 Темна тема");
+}
 
   // ===========================
   // Views refs
@@ -279,26 +290,35 @@ function save() {
   function showAuth() { authOverlay && authOverlay.classList.add("active"); }
   function hideAuth() { authOverlay && authOverlay.classList.remove("active"); }
 
-  function updateUserUI() {
-    if (!state.user) return;
+function updateUserUI() {
+  if (!state.user) return;
 
-    updateStreak(state.user);
+  // перевіримо, чи streak змінився
+  const beforeLastDay = state.user.lastDay;
+  const beforeStreak = state.user.streak;
 
-    $("uiName").innerText = state.user.name;
-    $("uiAvatar").innerText = (state.user.name[0] || "U").toUpperCase();
-    $("uiXP").innerText = `${state.user.xp} XP`;
-    $("uiStreak").innerText = String(state.user.streak || 1);
+  updateStreak(state.user);
 
-    const lvl = levelFromXp(state.user.xp || 0);
-    $("uiLevel").innerText = `Level ${lvl.level}`;
-    $("uiLevelXP").innerText = `${lvl.inLevelXp}/${lvl.nextLevelXp} XP`;
-    $("uiLevelFill").style.width = `${Math.round((lvl.inLevelXp / lvl.nextLevelXp) * 100)}%`;
+  const streakChanged =
+    beforeLastDay !== state.user.lastDay ||
+    beforeStreak !== state.user.streak;
 
-    const hx = $("homeTotalXP"); if (hx) hx.textContent = String(state.user.xp || 0);
-    const hs = $("homeStreak"); if (hs) hs.textContent = String(state.user.streak || 1);
+  $("uiName").innerText = state.user.name;
+  $("uiAvatar").innerText = (state.user.name[0] || "U").toUpperCase();
+  $("uiXP").innerText = `${state.user.xp} XP`;
+  $("uiStreak").innerText = String(state.user.streak || 1);
 
-    save();
-  }
+  const lvl = levelFromXp(state.user.xp || 0);
+  $("uiLevel").innerText = `Level ${lvl.level}`;
+  $("uiLevelXP").innerText = `${lvl.inLevelXp}/${lvl.nextLevelXp} XP`;
+  $("uiLevelFill").style.width = `${Math.round((lvl.inLevelXp / lvl.nextLevelXp) * 100)}%`;
+
+  const hx = $("homeTotalXP"); if (hx) hx.textContent = String(state.user.xp || 0);
+  const hs = $("homeStreak"); if (hs) hs.textContent = String(state.user.streak || 1);
+
+  // зберігаємо тільки якщо streak реально змінився
+  if (streakChanged) save();
+}
 
   // ===========================
   // Progress helpers
