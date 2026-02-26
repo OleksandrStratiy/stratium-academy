@@ -17,22 +17,30 @@
   <!-- AUTH -->
   <div id="authOverlay" class="overlay">
     <div class="modal auth-card">
-      <div class="brand-lg">🐍 Python<span>Pro</span></div>
-      <h2>Ласкаво просимо</h2>
-      <p>Твій прогрес зберігається локально. Введи ім'я:</p>
 
+        <div class="brand">
+          <div class="logo-shield" aria-label="Stratium">
+            <span class="logo-letter">S</span>
+          </div>
+          <div>
+            <div class="brand-main">STRATIUM</div>
+            <div class="brand-sub">ACADEMY</div>
+          </div>
+      </div>
+
+      <h2>Ласкаво просимо</h2>
+      
       <button id="btnGoogle" type="button" class="btn-primary full" style="margin-bottom:10px;">
         <i class="ri-google-fill"></i> Увійти через Google
       </button>
+
+      <p>Можна входити без реєстрації на сайті але твій прогрес буде зберігається лише  локально.</p>
+      <h2>Введи ім'я:</h2>
 
       <form id="loginForm">
         <input type="text" id="usernameInput" placeholder="Нікнейм..." required autocomplete="off">
         <button type="submit" class="btn-primary full">Почати</button>
       </form>
-
-
-
-      <div class="auth-link" id="authImportLink">Відновити через код (Імпорт)</div>
       <div id="loginErr" class="tiny" style="margin-top:10px;color:var(--danger);display:none;"></div>
     </div>
   </div>
@@ -42,12 +50,16 @@
 
     <aside class="sidebar">
       <div class="sidebar-header" id="btnGoHome">
-        <div class="logo-shield" aria-label="Stratium">
-          <span class="logo-letter">S</span>
-        </div>
+
         <div class="brand">
-          <div class="brand-main">STRATIUM</div>
-          <div class="brand-sub">ACADEMY</div>
+          <div class="logo-shield" aria-label="Stratium">
+            <span class="logo-letter">S</span>
+          </div>
+          <div>
+            <div class="brand-main">STRATIUM</div>
+            <div class="brand-sub">ACADEMY</div>
+          </div>
+
         </div>
       </div>
 
@@ -204,6 +216,42 @@
             </div>
           </section>
 
+
+          <div id="successOverlay" class="overlay">
+            <div class="modal" style="max-width: 420px; text-align: center;">
+              <h2 style="color:var(--success); font-size: 32px; margin-bottom: 6px;">🎉 Чудово!</h2>
+              <p id="successTaskName" class="mutedish" style="margin-bottom: 20px; font-weight: 700;"></p>
+              
+              <div class="xp-breakdown">
+                <div class="xp-row">
+                  <span>⭐ Базові XP:</span> 
+                  <strong id="xpBase">+0</strong>
+                </div>
+                <div class="xp-row">
+                  <span title="Вирішено з 1-ї спроби">🎯 Снайпер:</span> 
+                  <strong id="xpSniper" class="bonus">+0</strong>
+                </div>
+                <div class="xp-row">
+                  <span title="Вирішено швидше ніж за 2 хв">⚡ Швидкість:</span> 
+                  <strong id="xpSpeed" class="bonus">+0</strong>
+                </div>
+                <div class="xp-row">
+                  <span title="Твій щоденний стрік">🔥 Бонус за стрік:</span> 
+                  <strong id="xpStreak" class="bonus">+0</strong>
+                </div>
+                
+                <hr style="border:none; border-top:1px solid var(--border); margin: 12px 0;">
+                
+                <div class="xp-row" style="font-size: 20px; margin-bottom: 0;">
+                  <span>Усього:</span> 
+                  <strong id="xpTotal" style="color:var(--primary)">+0 XP</strong>
+                </div>
+              </div>
+        
+              <button id="btnSuccessNext" class="btn-primary full" style="margin-top: 20px;">Далі ➔</button>
+            </div>
+          </div>
+
           <!-- IO row -->
           <section class="io-row">
             <div class="cardx editor-card">
@@ -303,9 +351,16 @@
 
   <div id="toast" class="toast"></div>
 
-  <script src="js/data.js"></script>
+  <script src="js/data/core.js"></script>
+
+  <!-- Python modules -->
+  <script src="js/data/python/m_print.js"></script>
+  <script src="js/data/python/m_variables.js"></script>
+  <!-- потім додаси так само інші: m_vars.js, m_if.js, ... -->
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/app.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
-
