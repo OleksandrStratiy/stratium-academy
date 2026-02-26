@@ -1869,6 +1869,9 @@ function openLevelPicker(courseId, onDone) {
     goto("/home");
   }
 
+   // Закриваємо мобільне меню при будь-якому переході
+    document.querySelector(".sidebar")?.classList.remove("open");
+    document.querySelector(".sidebar-overlay")?.classList.remove("active");
   // ===========================
   // Events bind
   // ===========================
@@ -2052,4 +2055,5 @@ applyTheme(state.settings.theme || "dark");
   renderByRoute();
 })();
 })();
+
 
