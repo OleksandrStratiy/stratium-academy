@@ -1981,7 +1981,26 @@ on($("btnGoogle"), "click", async () => {
     toast("❌ Не вдалося увійти через Google");
   }
 });
+   // Створення затемнення для мобільного меню
+    const sbOverlay = document.createElement("div");
+    sbOverlay.className = "sidebar-overlay";
+    document.body.appendChild(sbOverlay);
 
+    const btnMobileMenu = $("btnMobileMenu");
+    const sidebar = document.querySelector(".sidebar");
+
+    if (btnMobileMenu) {
+      btnMobileMenu.onclick = () => {
+        sidebar.classList.add("open");
+        sbOverlay.classList.add("active");
+      };
+    }
+
+    // Закриття по кліку на темний фон
+    sbOverlay.onclick = () => {
+      sidebar.classList.remove("open");
+      sbOverlay.classList.remove("active");
+    };
     window.addEventListener("hashchange", renderByRoute);
   }
 
@@ -2033,3 +2052,4 @@ applyTheme(state.settings.theme || "dark");
   renderByRoute();
 })();
 })();
+
