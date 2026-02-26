@@ -7,6 +7,10 @@
 
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+  
   <link rel="stylesheet" href="css/style.css" />
 
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -266,8 +270,7 @@
               </div>
 
               <div class="code-wrap">
-                <div class="gutter" id="gutter"></div>
-                <textarea id="codeEditor" spellcheck="false" placeholder="# Пиши код тут..."></textarea>
+                <textarea id="codeEditor" placeholder="# Пиши код тут..."></textarea>
               </div>
             </div>
 
@@ -348,10 +351,10 @@
 
       <button id="btnResetAll" class="btn-danger full">Reset прогрес</button>
       <button id="btnLogout" class="btn-danger full" style="margin-top:10px;">Вийти з акаунту</button>
-    </div>
+    </div>="code-wrap
   </div>
 
-  <div id="toast" class="toast"></div>
+  <div id="toast" class="toast"></div>="code-wrap
 
   <script src="js/data/core.js"></script>
 
@@ -360,10 +363,14 @@
   <script src="js/data/python/m_variables.js"></script>
   <!-- потім додаси так само інші: m_vars.js, m_if.js, ... -->
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
+  
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/app.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/app.js"></script>
+  
 </body>
 </html>
+
 
