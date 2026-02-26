@@ -1114,12 +1114,39 @@ ul {
 @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
 @keyframes marquee{ 0%{ transform: translateX(0); } 100%{ transform: translateX(-33.33%); } }
 
-@media (max-width: 980px){
-  body{ overflow:auto; }
-  .sidebar{ width: 260px; }
-  .io-row{ grid-template-columns: 1fr; }
-  .code-wrap{ min-height: 300px; }
-  .terminal{ min-height: 240px; }
+/* ==========================
+   МОБІЛЬНА АДАПТАЦІЯ (BURGER MENU)
+========================== */
+.mobile-menu-btn { display: none; }
+.sidebar-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px);
+  z-index: 8; display: none; opacity: 0; transition: .3s ease;
+}
+.sidebar-overlay.active { display: block; opacity: 1; }
+
+@media (max-width: 980px) {
+  .mobile-menu-btn { display: flex; }
+  
+  /* Ховаємо сайдбар за лівий край екрана */
+  .sidebar {
+    position: fixed;
+    left: -320px; 
+    top: 0;
+    height: 100%;
+    width: 280px;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+    box-shadow: 0 0 40px rgba(0,0,0,0.5);
+  }
+  
+  /* Клас для виїзду сайдбару */
+  .sidebar.open { left: 0; }
+  
+  .io-row { grid-template-columns: 1fr; }
+  .code-wrap { min-height: 300px; }
+  .terminal { min-height: 240px; }
+  .lesson-vertical { padding: 18px 14px 40px; }
 }
 
 
@@ -1253,3 +1280,4 @@ html[data-theme="light"] .xp-breakdown {
 .xp-row .bonus {
   color: var(--warn); /* Золотий колір для бонусів */
 }
+
