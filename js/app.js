@@ -1178,6 +1178,55 @@ async function renderLeaderboard() {
     }
   }
 
+// ===========================
+  // SKULPT PYTHON ENGINE
+  // ===========================
+  function runPythonSkulpt(code) {
+    return new Promise((resolve) => {
+      let output = "";
+      
+      // Функція для збору виводу print()
+      function outf(text) { 
+        output += text; 
+      }
+      
+      // Функція для читання вбудованих файлів Skulpt
+      function builtinRead(x) {
+        if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined) {
+          throw "File not found: '" + x + "'";
+        }
+        return Sk.builtinFiles["files"][x];
+      }
+
+      Sk.configure({
+        output: outf,
+        read: builtinRead,
+        execLimit: 5000, // Захист від нескінченних циклів (while True) - 5 секунд
+        inputfun: function (promptMsg) {
+          return new Promise((resolveInput) => {
+            // Використовуємо браузерний prompt для input()
+            let val = window.prompt(promptMsg || "");
+            resolveInput(val !== null ? val : "");
+          });
+        }
+      });
+
+      // Асинхронний запуск коду
+      let myPromise = Sk.misceval.asyncToPromise(function() {
+        return Sk.importMainWithBody("<stdin>", false, code, true);
+      });
+
+      myPromise.then(
+        function() {
+          resolve({ ok: true, stdout: output.replace(/\s+$/g, "") });
+        },
+        function(err) {
+          resolve({ ok: false, error: err.toString(), stdout: output.replace(/\s+$/g, "") });
+        }
+      );
+    });
+  }
+
   // ===========================
   // Smart checker — normalization
   // ===========================
@@ -1271,9 +1320,8 @@ async function renderLeaderboard() {
       .replace(/\n/g, "↵\n");
   }
 
-  function runTaskTestsSmart(task, code) {
-    const py = new MiniPy();
-    const exec = py.run(code);
+  async function runTaskTestsSmart(task, code) {
+  const exec = await runPythonSkulpt(code);
     const results = [];
     const tests = task.tests || [];
     const rawStdout = String(exec.stdout ?? "");
@@ -1711,8 +1759,15 @@ let myCodeMirror = null;
 
     // RUN
     $("btnRun").onclick = () => {
+// RUN
+    $("btnRun").onclick = async () => {
       const code = myCodeMirror.getValue();
-      const run = runTaskTestsSmart(task, code);
+      
+      // Показуємо користувачу, що код виконується
+      if (terminal) terminal.textContent = ">>> Виконання коду...";
+      
+      // Чекаємо результатів від Skulpt
+      const run = await runTaskTestsSmart(task, code);
 
       if (terminal) terminal.textContent = buildTerminalReport(run);
 
@@ -1720,6 +1775,7 @@ let myCodeMirror = null;
       // FAIL (Помилка виконання або не пройдені тести)
       // ==============================
       if (!run.allPass) {
+        // ... (ДАЛІ ВЕСЬ ТВІЙ КОД ЗАЛИШАЄТЬСЯ БЕЗ ЗМІН)
         const alreadyDone = !!completionState(id);
         if (!alreadyDone) {
           const n = incAttempts(id);
