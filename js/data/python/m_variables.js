@@ -13,7 +13,7 @@
       // ====== ЧАСТИНА 1: Створення та базове використання ======
 
       {
-        title: "1. Моя перша змінна",
+        title: "Моя перша змінна",
         xp: 50,
         kind: "practice",
         difficulty: "Junior",
@@ -41,7 +41,7 @@
       },
 
       {
-        title: "2. Змінні з текстом (Рядки)",
+        title: "Змінні з текстом (Рядки)",
         xp: 60,
         kind: "practice",
         difficulty: "Junior",
@@ -69,7 +69,7 @@
       },
 
       {
-        title: "3. Текст + Змінна разом",
+        title: "Текст + Змінна разом",
         xp: 70,
         kind: "practice",
         difficulty: "Junior",
@@ -96,7 +96,7 @@
       },
 
       {
-        title: "4. Перезапис змінної",
+        title: "Перезапис змінної",
         xp: 80,
         kind: "practice",
         difficulty: "Junior",
@@ -126,7 +126,7 @@
       // ====== ЧАСТИНА 2: Математика зі змінними ======
 
       {
-        title: "5. Додавання змінних",
+        title: "Додавання змінних",
         xp: 90,
         kind: "practice",
         difficulty: "Junior",
@@ -154,7 +154,7 @@
       },
 
       {
-        title: "6. Третя змінна — результат",
+        title: "Третя змінна — результат",
         xp: 100,
         kind: "practice",
         difficulty: "Junior",
@@ -183,7 +183,7 @@
       },
 
       {
-        title: "7. Множення змінних",
+        title: "Множення змінних",
         xp: 100,
         kind: "practice",
         difficulty: "Junior",
@@ -210,7 +210,7 @@
       },
 
       {
-        title: "8. Оновлення: сам плюс сам",
+        title: "Оновлення: сам плюс сам",
         xp: 120,
         kind: "practice",
         difficulty: "Junior",
@@ -238,7 +238,7 @@
       },
 
       {
-        title: "9. Копіювання змінних",
+        title: "Копіювання змінних",
         xp: 110,
         kind: "practice",
         difficulty: "Junior",
@@ -264,7 +264,7 @@
       },
 
       {
-        title: "10. Правильні імена (snake_case)",
+        title: "Правильні імена (snake_case)",
         xp: 90,
         kind: "practice",
         difficulty: "Junior",
@@ -294,7 +294,7 @@
       // ====== ЧАСТИНА 3: Спеціальні операції (Конкатенація та Форматування) ======
 
       {
-        title: "11. Конкатенація (Додавання рядків)",
+        title: "Конкатенація (Додавання рядків)",
         xp: 130,
         kind: "practice",
         difficulty: "Junior",
@@ -323,7 +323,7 @@
       },
 
       {
-        title: "12. Множення рядка на число",
+        title: "Множення рядка на число",
         xp: 130,
         kind: "practice",
         difficulty: "Junior",
@@ -349,7 +349,7 @@
       },
 
       {
-        title: "13. Змінні та гнучкий sep",
+        title: "Змінні та гнучкий sep",
         xp: 140,
         kind: "practice",
         difficulty: "Junior",
@@ -375,7 +375,7 @@
       },
 
       {
-        title: "14. Змінні та невидимий end",
+        title: "Змінні та невидимий end",
         xp: 140,
         kind: "practice",
         difficulty: "Junior",
@@ -401,7 +401,7 @@
       },
 
       {
-        title: "15. Складна формула",
+        title: "Складна формула",
         xp: 160,
         kind: "practice",
         difficulty: "Junior",
@@ -429,7 +429,7 @@
       },
 
       {
-        title: "16. Своп (Обмін значень)",
+        title: "Своп (Обмін значень)",
         xp: 170,
         kind: "practice",
         difficulty: "Junior",
