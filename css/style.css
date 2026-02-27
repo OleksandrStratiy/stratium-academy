@@ -61,8 +61,8 @@ body{
   overflow:hidden;
   color: var(--text);
   background:
-    radial-gradient(1100px 620px at 40% -10%, rgba(14,165,233,.22), transparent 60%),
-    radial-gradient(900px 520px at 85% 15%, rgba(139,92,246,.18), transparent 55%),
+    radial-gradient(1100px 620px at 40% -10%, rgba(14,165,233,0.22), transparent 60%),
+    radial-gradient(900px 520px at 85% 15%, rgba(139,92,246,0.18), transparent 55%),
     linear-gradient(180deg, var(--bg), var(--bg2));
 }
 
@@ -101,7 +101,7 @@ body{
   gap:12px;
   cursor:pointer;
   border-bottom:1px solid var(--border);
-  background: linear-gradient(135deg, rgba(14,165,233,.10), transparent);
+  background: linear-gradient(135deg, rgba(14,165,233,0.10), transparent);
 
   /* premium motion */
   transition: transform .25s ease, filter .25s ease;
@@ -132,12 +132,12 @@ body{
   background-size: 220% 220%;
   background-position: 0% 50%;
 
-  border: 1px solid rgba(255,255,255,.16);
+  border: 1px solid rgba(255,255,255,0.16);
 
   box-shadow:
-    0 10px 26px rgba(14,165,233,.24),
-    0 18px 50px rgba(139,92,246,.16),
-    inset 0 0 18px rgba(255,255,255,.10);
+    0 10px 26px rgba(14,165,233,0.24),
+    0 18px 50px rgba(139,92,246,0.16),
+    inset 0 0 18px rgba(255,255,255,0.10);
 
   position: relative;
   transition: transform .25s ease, filter .25s ease;
@@ -158,11 +158,11 @@ body{
 @keyframes shieldBreath{
   0%,100%{
     transform: translateY(0);
-    filter: drop-shadow(0 0 10px rgba(14,165,233,.22));
+    filter: drop-shadow(0 0 10px rgba(14,165,233,0.22));
   }
   50%{
     transform: translateY(-1px);
-    filter: drop-shadow(0 0 22px rgba(139,92,246,.30));
+    filter: drop-shadow(0 0 22px rgba(139,92,246,0.30));
   }
 }
 
@@ -203,7 +203,7 @@ body{
   inset: 5px;
   -webkit-clip-path: inherit;
   clip-path: inherit;
-  border: 1px solid rgba(0,0,0,.28);
+  border: 1px solid rgba(0,0,0,0.28);
   opacity: .38;
   pointer-events:none;
 }
@@ -216,14 +216,15 @@ body{
   letter-spacing: .02em;
   transform: translateY(-1px);
   text-shadow:
-    0 1px 0 rgba(255,255,255,.22),
+    0 1px 0 rgba(255,255,255,0.22),
     0 8px 18px rgba(0,0,0,.20);
 }
+
 
 /* Hover: ще дорожче */
 .sidebar-header:hover .logo-shield{
   transform: translateY(-2px) scale(1.05);
-  filter: drop-shadow(0 0 26px rgba(14,165,233,.38));
+  filter: drop-shadow(0 0 26px rgba(14,165,233,0.38));
 }
 /* ===== S LOGO BADGE ===== */
 
@@ -237,19 +238,14 @@ body{
 
   background: linear-gradient(135deg, #0ea5e9, #8b5cf6);
   box-shadow: 
-    0 8px 20px rgba(14,165,233,.35),
-    inset 0 0 12px rgba(255,255,255,.15);
+    0 8px 20px rgba(14,165,233,0.35),
+    inset 0 0 12px rgba(255,255,255,0.15);
 
   position: relative;
   transition: .3s ease;
 }
 
-.logo-letter{
-  font-weight: 900;
-  font-size: 22px;
-  color: #000;
-  letter-spacing: .02em;
-}
+
 
 /* subtle premium glow */
 .logo-badge{
@@ -259,13 +255,13 @@ body{
 @keyframes badgeGlow{
   0%,100%{
     box-shadow:
-      0 8px 20px rgba(14,165,233,.25),
-      inset 0 0 12px rgba(255,255,255,.15);
+      0 8px 20px rgba(14,165,233,0.25),
+      inset 0 0 12px rgba(255,255,255,0.15);
   }
   50%{
     box-shadow:
       0 12px 30px rgba(139,92,246,.45),
-      inset 0 0 18px rgba(255,255,255,.25);
+      inset 0 0 18px rgba(255,255,255,0.25);
   }
 }
 
@@ -304,7 +300,7 @@ body{
 
 @keyframes textGlow{
   0%,100%{ filter: drop-shadow(0 0 0 rgba(14,165,233,0)); }
-  50%{ filter: drop-shadow(0 0 10px rgba(14,165,233,.16)); }
+  50%{ filter: drop-shadow(0 0 10px rgba(14,165,233,0.16)); }
 }
 
 .brand-sub{
@@ -317,11 +313,11 @@ body{
 /* premium hover */
 .sidebar-header:hover{
   transform: translateY(-1px);
-  filter: drop-shadow(0 10px 18px rgba(14,165,233,.10));
+  filter: drop-shadow(0 10px 18px rgba(14,165,233,0.10));
 }
 
 .sidebar-header:hover .logo-icon{
-  filter: drop-shadow(0 0 22px rgba(14,165,233,.35));
+  filter: drop-shadow(0 0 22px rgba(14,165,233,0.35));
 }
 
 .sidebar .menu-btn i {
@@ -509,8 +505,8 @@ body{
 .levelbar-fill{
   height:100%;
   width:0%;
-  background: linear-gradient(90deg, rgba(14,165,233,.95), rgba(139,92,246,.95));
-  box-shadow: 0 0 18px rgba(14,165,233,.18);
+  background: linear-gradient(90deg, rgba(14,165,233,0.95), rgba(139,92,246,0.95));
+  box-shadow: 0 0 18px rgba(14,165,233,0.18);
 }
 
 .view{ display:none; height:100%; overflow:auto; }
@@ -610,8 +606,8 @@ body{
 }
 .card:hover{
   transform: translateY(-4px);
-  border-color: rgba(14,165,233,.35);
-  box-shadow: 0 18px 40px rgba(14,165,233,.10);
+  border-color: rgba(14,165,233,0.35);
+  box-shadow: 0 18px 40px rgba(14,165,233,0.10);
 }
 .card h3{ margin-bottom: 6px; }
 .card p{ color: var(--text-dim); font-size: 13px; line-height: 1.5; }
@@ -711,19 +707,40 @@ body{
 html[data-theme="light"] .typography p{ color: rgba(15,23,42,.85); }
 .typography code{ font-family: var(--mono); }
 
-.code-box{
-  background: rgba(2,6,23,.55);
+
+.code-box {
+  background: rgba(2,6,23,.55) !important;
   padding: 10px 12px;
   border-radius: 12px;
   font-family: var(--mono);
   color: #e2e8f0;
   border-left: 3px solid var(--accent);
   margin: 10px 0;
-  overflow:auto;
+  overflow: auto;
+  white-space: pre-wrap; /* <--- ДОДАЙ ОСЬ ЦЕЙ РЯДОК */
 }
 html[data-theme="light"] .code-box{
-  background: rgba(15,23,42,.06);
+  background: rgba(15,23,42,.06) !important; /* Жорстко фіксуємо світлий фон */
   color: rgba(15,23,42,.9);
+}
+
+/* Блок для результату (терміналу) у теорії */
+.output-box {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-family: var(--mono);
+  color: #a1a1aa; /* Приглушений сірий колір тексту */
+  border-left: 3px solid #52525b; /* Нейтральна сіра смужка замість яскравої */
+  margin: 10px 0;
+  overflow: auto;
+}
+
+/* Світла тема для результату */
+html[data-theme="light"] .output-box {
+  background: rgba(15, 23, 42, 0.03);
+  color: rgba(15, 23, 42, 0.7);
+  border-left-color: #cbd5e1;
 }
 
 .task-text{
@@ -824,23 +841,31 @@ html[data-theme="light"] .solution-pre{
   color: #000;
   display:flex; align-items:center; gap:8px;
 }
-.btn-run:hover{ filter: brightness(1.05); box-shadow: 0 0 18px rgba(14,165,233,.25); }
+.btn-run:hover{ filter: brightness(1.05); box-shadow: 0 0 18px rgba(14,165,233,0.25); }
 
 /* Контейнер редактора (без grid колонок) */
 .code-wrap {
   display: block; /* Замість grid, бо CodeMirror сам робить колонку з цифрами */
   position: relative;
   min-height: 360px;
+  height: 100%;
 }
 
 /* Сам редактор CodeMirror */
 .CodeMirror {
-  position: absolute; /* Розтягуємо на весь .code-wrap */
+  position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   height: 100%;
   font-family: var(--mono);
-  font-size: 14px; /* Повернув 14px, як було в твоєму дизайні */
-  background: transparent !important; /* Щоб зберігся твій гарний фон */
+  
+  /* === ПОКРАЩЕНА ЧИТАБЕЛЬНІСТЬ ДЛЯ УЧНІВ === */
+  font-size: 16px;          /* Зробили шрифт трохи більшим (було 14px) */
+  letter-spacing: 0.5px;    /* Трохи відсунули букви та символи один від одного */
+  word-spacing: 3px;        /* Зробили ПРОБІЛИ між словами значно ширшими */
+  line-height: 1.6;         /* Додали простору між рядками зверху і знизу */
+  /* ========================================= */
+  
+  background: transparent !important; 
   border-bottom-left-radius: 20px;
   border-bottom-right-radius: 20px;
   color: rgba(226,232,240,.95);
@@ -858,13 +883,7 @@ html[data-theme="light"] .solution-pre{
   color: rgba(148,163,184,.6) !important;
 }
 
-/* Світла тема */
-html[data-theme="light"] .CodeMirror {
-  color: rgba(15,23,42,.92);
-}
-html[data-theme="light"] .CodeMirror-gutters {
-  background: rgba(15,23,42,.06) !important;
-}
+
 /* Світла тема */
 html[data-theme="light"] .CodeMirror {
   color: rgba(15,23,42,.92);
@@ -885,14 +904,21 @@ html[data-theme="light"] .CodeMirror-gutters {
   flex-wrap: wrap;
 }
 .term-title{ font-weight: 900; display:flex; gap:8px; align-items:center; }
-.terminal{
+.terminal {
   background: transparent;
   padding: 14px;
   min-height: 360px;
   font-family: var(--mono);
-  font-size: 13px;
+  
+  /* === ПОКРАЩЕНА ЧИТАБЕЛЬНІСТЬ === */
+  font-size: 15px;
+  letter-spacing: 0.5px;
+  word-spacing: 2px;
+  line-height: 1.6;
+  /* =============================== */
+  
   color: rgba(148,163,184,.95);
-  overflow:auto;
+  overflow: auto;
   white-space: pre-wrap;
 }
 
@@ -939,7 +965,7 @@ html[data-theme="light"] .stdin{ background: rgba(15,23,42,.06); color: var(--te
 .btn-next.unlocked{
   opacity: 1;
   pointer-events:auto;
-  box-shadow: 0 0 18px rgba(14,165,233,.22);
+  box-shadow: 0 0 18px rgba(14,165,233,0.22);
 }
 
 .overlay{
@@ -1229,17 +1255,17 @@ ul {
 .lvl-desc { font-size: 11px; color: var(--text-dim); line-height: 1.3; }
 
 /* Активні стани для кожного рівня */
-.lvl-btn.active[data-set-lvl="rookie"] {
+.lvl-btn.active[data-set-lvl="Junior"] {
   border-color: rgba(34, 197, 94, 0.5);
   background: rgba(34, 197, 94, 0.1);
   box-shadow: 0 8px 20px rgba(34, 197, 94, 0.15);
 }
-.lvl-btn.active[data-set-lvl="adept"] {
+.lvl-btn.active[data-set-lvl="Middle"] {
   border-color: rgba(251, 191, 36, 0.5);
   background: rgba(251, 191, 36, 0.1);
   box-shadow: 0 8px 20px rgba(251, 191, 36, 0.15);
 }
-.lvl-btn.active[data-set-lvl="master"] {
+.lvl-btn.active[data-set-lvl="Senior"] {
   border-color: rgba(239, 68, 68, 0.5);
   background: rgba(239, 68, 68, 0.1);
   box-shadow: 0 8px 20px rgba(239, 68, 68, 0.15);
