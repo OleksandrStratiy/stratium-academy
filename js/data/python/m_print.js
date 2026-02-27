@@ -9,78 +9,60 @@
     color: "#0ea5e9",
     desc: "Вивід у консоль: sep, end, кілька значень, escape.",
 
-    // ВАЖЛИВО: тепер задачі бажано маркувати рівнем:
-    // difficulty: "rookie" | "adept" | "master"
-    // Якщо difficulty нема — буде вважатись "rookie".
     tasks: [
-     
       {
         title: "Старт: Привіт, світ!",
         xp: 35,
         kind: "practice",
-        difficulty: "rookie",
+        difficulty: "Junior",
         theory: `
           <h2>Що таке Python?</h2>
-
           <p>
             Python — це мова програмування.
             Мова програмування — це спосіб "пояснити компʼютеру", що він має зробити.
           </p>
-
           <p>
             Компʼютер сам нічого не вирішує — він просто виконує команди,
             які ми йому пишемо.
           </p>
-
           <h2>Що таке print()?</h2>
-
           <p>
             <code>print()</code> — це команда, яка показує текст або число
             внизу екрана (у консолі / терміналі).
           </p>
-
           <p>
             Все, що знаходиться всередині дужок <code>()</code>,
             Python надрукує на екрані.
           </p>
-
           <h3>Текст у Python</h3>
-
           <p>
             Текст потрібно писати в лапках:
           </p>
-
           <ul>
             <li><code>"подвійні лапки"</code></li>
             <li><code>'одинарні лапки'</code></li>
           </ul>
-
           <p><b>Приклад:</b></p>
-
           <div class="code-box">
             print("Привіт, світ!")
           </div>
-
           <p><b>Що відбудеться?</b></p>
-
-          <div class="code-box">
+          <p><b>Результат у терміналі:</b></p>
+          <div class="output-box">
             Привіт, світ!
           </div>
-
           <p>
             Важливо:
             <br>✔ лапки обовʼязкові
             <br>✔ великі та малі букви мають значення
             <br>✔ коми, пробіли та знаки оклику мають бути точними
           </p>
-
           <p class="mutedish tiny">
             Програмування — це точність. Навіть один зайвий символ може змінити результат.
           </p>
         `,
         desc: "Виведи рівно: Привіт, світ!",
-        hint: `Напиши print() і всередині в лапках текст: Привіт, світ!
-        Тобто твій готовий код має виглядати так: print("Привіт, світ!")`,
+        hint: `Напиши print() і всередині в лапках текст: Привіт, світ!\nТобто твій готовий код має виглядати так: print("Привіт, світ!")`,
         solution: `print("Привіт, світ!")`,
         expected: `Привіт, світ!`,
         tests: [
@@ -89,11 +71,11 @@
         ]
       },
 
-
       {
         title: "Моє повідомлення",
         xp: 45,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>Текст у лапках</h2>
           <p>Щоб вивести текст, його потрібно написати в лапках — це називається <b>рядок (string)</b>.</p>
@@ -102,7 +84,7 @@
           <div class="code-box">print("Мені подобається Python")</div>
           
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">Мені подобається Python</div>
+          <div class="output-box">Мені подобається Python</div>
 
           <p class="mutedish tiny">
             Зверни увагу: усе, що в лапках, друкується точно так само — з пробілами і символами.
@@ -122,23 +104,22 @@
         ]
       },
 
-
       {
         title: "Два рядки (2 print)",
         xp: 65,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>Кожен print() — з нового рядка</h2>
           <p>За замовчуванням <code>print()</code> після виводу переходить на новий рядок.</p>
           
           <p><b>Приклад коду:</b></p>
           <div class="code-box">
-            print("Перший")<br>
-            print("Другий")
+            print("Перший")<br>print("Другий")
           </div>
           
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             Перший<br>
             Другий
           </div>
@@ -160,13 +141,11 @@
         ]
       },
 
-
-      // ====== РІВЕНЬ 2: Один print — кілька частин ======
-
       {
         title: "Кілька слів одним print()",
         xp: 80,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>Кілька аргументів у print()</h2>
           <p>У <code>print()</code> можна передати кілька значень через кому.</p>
@@ -178,7 +157,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             Мені подобається кодити
           </div>
 
@@ -199,11 +178,11 @@
         ]
       },
 
-
       {
         title: "Числа без лапок",
         xp: 70,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>Числа і print()</h2>
           <p>Числа пишуться без лапок: <code>print(7)</code>.</p>
@@ -218,12 +197,11 @@
         ]
       },
 
-      // ====== РІВЕНЬ 3: Математика (операції прямо в print) ======
-
       {
         title: "Математика: додавання",
         xp: 85,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>Математичні дії в Python</h2>
 
@@ -239,7 +217,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             7
           </div>
 
@@ -271,11 +249,11 @@
         ]
       },
 
-
       {
         title: "Математика: віднімання",
         xp: 85,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>Віднімання в Python</h2>
           <p>
@@ -293,7 +271,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             11
           </div>
 
@@ -322,6 +300,7 @@
         title: "Математика: множення",
         xp: 90,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>Множення в Python</h2>
           <p>
@@ -344,7 +323,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             10
           </div>
 
@@ -366,11 +345,11 @@
         ]
       },
 
-
       {
         title: "Математика: порядок дій",
         xp: 120,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>Порядок дій у Python</h2>
           <p>
@@ -395,7 +374,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             13
           </div>
 
@@ -409,7 +388,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             25
           </div>
 
@@ -430,13 +409,11 @@
         ]
       },
 
-
-      // ====== РІВЕНЬ 4: sep і end ======
-
       {
         title: "sep='-' (розділювач)",
         xp: 100,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>sep — що стоїть між частинами</h2>
           <p>
@@ -450,7 +427,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             A-B-C
           </div>
 
@@ -475,10 +452,11 @@
         title: "Дата через '/'",
         xp: 100,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>sep для форматів (дати, час, коди)</h2>
           <p>
-            <code>sep</code> дуже зручний для “форматів”, коли треба розділяти частини не пробілом, а символом:
+            <code>sep</code> дуже зручний для “форматів”, коли треба розділяти частинки не пробілом, а символом:
             <b>/</b>, <b>:</b>, <b>-</b>.
           </p>
 
@@ -488,7 +466,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             12:30
           </div>
 
@@ -513,6 +491,7 @@
         title: "end='' — додай знак в кінці",
         xp: 120,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>end — що буде в кінці рядка</h2>
           <p>
@@ -527,12 +506,11 @@
 
           <p><b>Приклад коду:</b></p>
           <div class="code-box">
-            print("Hi", end="")<br>
-            print("!")
+            print("Hi", end="")<br>print("!")
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             Hi!
           </div>
 
@@ -557,6 +535,7 @@
         title: "Склей фразу по частинах",
         xp: 130,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>Склеювання фрази через кілька print()</h2>
           <p>
@@ -566,13 +545,11 @@
 
           <p><b>Приклад коду:</b></p>
           <div class="code-box">
-            print("Початок", end="")<br>
-            print("...", end="")<br>
-            print("Кінець")
+            print("Початок", end="")<br>print("...", end="")<br>print("Кінець")
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             Початок...Кінець
           </div>
 
@@ -595,12 +572,11 @@
         ]
       },
 
-      // ====== РІВЕНЬ 5: Escape-символи ======
-
       {
         title: "Один print — три рядки (\\n)",
         xp: 130,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>\\n — новий рядок всередині тексту</h2>
           <p>
@@ -614,7 +590,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             один<br>
             два
           </div>
@@ -631,8 +607,7 @@
         `,
         expected: `котик\nпесик\nхомʼяк`,
         tests: [
-          { type: "stdoutEquals", name: "3 рядки правильні", value: "котик\nпесик\nхомʼяк", normalize: "soft" },
-          // { type: "codeIncludes", name: "Є \\n", value: "\\n" }
+          { type: "stdoutEquals", name: "3 рядки правильні", value: "котик\nпесик\nхомʼяк", normalize: "soft" }
         ]
       },
 
@@ -640,6 +615,7 @@
         title: "Лапки в тексті",
         xp: 140,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>Як вивести лапки всередині рядка?</h2>
           <p>
@@ -656,7 +632,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             Він сказав: "Привіт!"
           </div>
 
@@ -679,6 +655,7 @@
         title: "Шлях на Windows (\\\\)",
         xp: 150,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>\\\\ — щоб надрукувати \\</h2>
           <p>
@@ -692,7 +669,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             C:\\Temp\\file.txt
           </div>
 
@@ -721,6 +698,7 @@
         title: "Табуляція (\\t) — як у таблиці",
         xp: 150,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>\\t — табуляція</h2>
           <p>
@@ -734,7 +712,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             слово\tчисло
           </div>
 
@@ -751,18 +729,16 @@
         `,
         expected: `імʼя\tбал`,
         tests: [
-          { type: "stdoutEquals", name: "Є табуляція", value: "імʼя\tбал", normalize: "soft" },
-
+          { type: "stdoutEquals", name: "Є табуляція", value: "імʼя\tбал", normalize: "soft" }
         ]
         
       },
-
-      // ====== РІВЕНЬ 6: Мікс print + математика + формат ======
 
       {
         title: "Рахунок в одному рядку (слово + число)",
         xp: 130,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>Текст + результат обчислення</h2>
           <p>
@@ -776,7 +752,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             Результат: 10
           </div>
 
@@ -800,6 +776,7 @@
         title: "Мінус та плюс разом",
         xp: 140,
         kind: "practice",
+        difficulty: "Junior",
         theory: `
           <h2>Кілька операцій в одному виразі</h2>
           <p>
@@ -813,7 +790,7 @@
           </div>
 
           <p><b>Результат у терміналі:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             31
           </div>
 
@@ -834,12 +811,11 @@
         ]
       },
 
-      // ====== ПІДСУМКОВІ (3 задачі) ======
-
       {
         title: "Підсумкова 1: sep без пробілів",
         xp: 220,
         kind: "quiz",
+        difficulty: "Junior",
         theory: `
           <h2>Підсумкова №1</h2>
           <p>
@@ -852,7 +828,7 @@
             print("x", "y", "z", sep="|")
           </div>
           <p><b>Результат:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             x|y|z
           </div>
 
@@ -877,6 +853,7 @@
         title: "Підсумкова 2: end + один рядок",
         xp: 240,
         kind: "quiz",
+        difficulty: "Junior",
         theory: `
           <h2>Підсумкова №2</h2>
           <p>
@@ -886,11 +863,10 @@
 
           <p><b>Приклад (не з завдання):</b></p>
           <div class="code-box">
-            print("A", end="")<br>
-            print("B")
+            print("A", end="")<br>print("B")
           </div>
           <p><b>Результат:</b></p>
-          <div class="code-box">
+          <div class="output-box">
             AB
           </div>
 
@@ -915,6 +891,7 @@
         title: "Підсумкова 3: комбо sep + end + математика",
         xp: 300,
         kind: "quiz",
+        difficulty: "Junior",
         theory: `
           <h2>Підсумкова №3 (комбо)</h2>
           <p>
@@ -925,7 +902,6 @@
             <li><b>end</b> — щоб перший print не зробив новий рядок</li>
             <li><b>математика</b> — число треба отримати з обчислення</li>
           </ul>
-
 
           <p class="mutedish tiny">
             Порада: <code>sep=""</code> допомагає зробити “склейку” без пробілів.
@@ -946,8 +922,6 @@
           { type: "codeIncludes", name: "Є +", value: "+" }
         ]
       }
-
-      // ... сюди вставляєш решту задач модуля print() ...
     ]
   };
 
