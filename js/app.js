@@ -12,10 +12,9 @@
 (function () {
   "use strict";
 
-    // ===========================
+  // ===========================
   // Supabase (Auth + Cloud Save)
   // ===========================
-  // ВАЖЛИВО: тут має бути твій SUPABASE_URL і твій sb_publishable ключ
   const SUPABASE_URL = "https://jxupcqlidaozazbwxpxp.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_joFcOKBLVWXy3SVSkTHuXg_ZpezeivF";
 
@@ -68,18 +67,14 @@
         if (!user) return;
         await cloudSaveState(user.id, getStateFn());
       } catch (e) {
-        const user = await getSessionUser();
         console.error("Supabase load/save error:", e);
-      
-        // fallback: якщо state.user ще не створений — створимо мінімального локального
         if (!state.user) {
-          state.user = { name: "User", xp:0, streak:1, lastDay:null, completed:{}, attempts:{}, spoiled:{}, drafts:{} };
+          state.user = { name: "User", xp:0, streak:1, lastDay:null, completed:{}, attempts:{}, spoiled:{}, drafts:{}, solutions:{} };
           save();
         }
       }
     }, 900);
   }
-  
 
   // ===========================
   // DOM helpers
@@ -91,9 +86,6 @@
     el.addEventListener(evt, fn);
   }
 
-  // ===========================
-  // Toast
-  // ===========================
   function toast(msg) {
     const el = $("toast");
     if (!el) return;
@@ -138,10 +130,7 @@
   // ===========================
   function todayISO() {
     const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   }
 
   function updateStreak(user) {
@@ -162,13 +151,8 @@
     user.lastDay = t;
   }
 
-  // ===========================
-  // Level
-  // ===========================
   function levelFromXp(xp) {
-    let level = 1;
-    let threshold = 200;
-    let remaining = xp;
+    let level = 1, threshold = 200, remaining = xp;
     while (remaining >= threshold) {
       remaining -= threshold;
       level += 1;
@@ -177,62 +161,52 @@
     return { level, inLevelXp: remaining, nextLevelXp: threshold };
   }
 
-    // ===========================
-    // Storage
-    // ===========================
-    const KEY = "py_lms_smart_v3_refactor";
+  // ===========================
+  // Storage
+  // ===========================
+  const KEY = "py_lms_smart_v3_refactor";
 
-    const defaultState = {
-      user: null,
-      settings: { sound: true, theme: "dark" },
-      leaderboard: (typeof LEADERBOARD_SEED !== "undefined" ? LEADERBOARD_SEED.slice(0) : []),
+  const defaultState = {
+    user: null,
+    settings: { sound: true, theme: "dark" },
+    leaderboard: (typeof LEADERBOARD_SEED !== "undefined" ? LEADERBOARD_SEED.slice(0) : []),
+    courseLevels: {}
+  };
 
-      // NEW: обрані рівні для курсів
-      courseLevels: {} // наприклад: { "python_basics": "Junior" }
-    };
-
-    function load() {
-      try {
-        const raw = localStorage.getItem(KEY);
-        return raw ? JSON.parse(raw) : null;
-      } catch {
-        return null;
-      }
+  function load() {
+    try {
+      const raw = localStorage.getItem(KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
     }
+  }
 
-    let state = load() || structuredClone(defaultState);
+  let state = load() || structuredClone(defaultState);
 
   function save() {
     localStorage.setItem(KEY, JSON.stringify(state));
-    // онлайн-синхронізація (тихо, з паузою)
     scheduleCloudSync(() => state);
   }
 
-    function resetAll() {
-      localStorage.removeItem(KEY);
-    }
+  function resetAll() {
+    localStorage.removeItem(KEY);
+  }
 
-    function safeB64Encode(obj) {
-      return btoa(encodeURIComponent(JSON.stringify(obj)));
-    }
-    function safeB64Decode(b64) {
-      return JSON.parse(decodeURIComponent(atob((b64 || "").trim())));
-    }
+  // ===========================
+  // Routing
+  // ===========================
+  function routeParse() {
+    const raw = (location.hash || "#/home").slice(1);
+    return raw.split("/").filter(Boolean);
+  }
+  function goto(hash) {
+    location.hash = hash.startsWith("#") ? hash : ("#" + hash);
+  }
 
-    // ===========================
-    // Routing
-    // ===========================
-    function routeParse() {
-      const raw = (location.hash || "#/home").slice(1);
-      return raw.split("/").filter(Boolean);
-    }
-    function goto(hash) {
-      location.hash = hash.startsWith("#") ? hash : ("#" + hash);
-    }
-
-    // ===========================
-    // Theme
-    // ===========================
+  // ===========================
+  // Theme
+  // ===========================
   function applyTheme(theme) {
     const t = theme === "light" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", t);
@@ -240,59 +214,44 @@
 
     const icon = $("uiThemeIcon");
     if (icon) icon.className = (t === "light") ? "ri-moon-line" : "ri-sun-line";
-    if (myCodeMirror) myCodeMirror.setOption("theme", t === "light" ? "default" : "dracula");
-
-    // ДОДАЙ ЦЕЙ БЛОК:
-    const themeClass = t === "light" ? "default" : "dracula";
-    document.querySelectorAll('.code-box').forEach(box => {
-      box.classList.remove('cm-s-default', 'cm-s-dracula');
-      box.classList.add(`cm-s-${themeClass}`);
-    });
+    if (typeof myCodeMirror !== "undefined" && myCodeMirror) myCodeMirror.setOption("theme", t === "light" ? "default" : "dracula");
   }
 
   function toggleTheme() {
     const next = (state.settings.theme === "light") ? "dark" : "light";
     applyTheme(next);
-    save(); // ← ТУТ ЗБЕРІГАЄМО, бо користувач реально змінив тему
+    save();
     toast(next === "light" ? "🌞 Світла тема" : "🌙 Темна тема");
   }
 
-    // ===========================
-    // Views refs
-    // ===========================
-    const authOverlay = $("authOverlay");
-    const settingsOverlay = $("settingsOverlay");
+  // ===========================
+  // Views refs
+  // ===========================
+  const authOverlay = $("authOverlay");
+  const settingsOverlay = $("settingsOverlay");
+  const viewHome = $("view-home");
+  const viewModules = $("view-modules");
+  const viewLesson = $("view-lesson");
+  const viewLeaderboard = $("view-leaderboard");
 
-    const viewHome = $("view-home");
-    const viewModules = $("view-modules");
-    const viewLesson = $("view-lesson");
-    const viewLeaderboard = $("view-leaderboard");
+  function setActiveView(which) {
+    [viewHome, viewModules, viewLesson, viewLeaderboard].forEach(v => v && v.classList.remove("active"));
+    if (which) which.classList.add("active");
+  }
 
-    function setActiveView(which) {
-      [viewHome, viewModules, viewLesson, viewLeaderboard].forEach(v => v && v.classList.remove("active"));
-      if (which) which.classList.add("active");
-    }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
 
-    // ===========================
-    // Misc helpers
-    // ===========================
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, (c) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-      }[c]));
-    }
-
-    // ===========================
-  // Course difficulty (Junior / Middle / Senior)
+  // ===========================
+  // Course difficulty
   // ===========================
   const LEVELS = [
-    { id: "Junior",  title: "🟢 Junior",  desc: "Легкий старт, базові задачі" },
-    { id: "Middle",   title: "🟡 Middle",  desc: "Середній рівень, більше логіки" },
-    { id: "Senior",  title: "🔴 Senior",  desc: "Складні задачі та підводні камені" },
+    { id: "rookie",  title: "🟢 Junior",  desc: "Легкий старт, базові задачі" },
+    { id: "adept",   title: "🟡 Middle",  desc: "Середній рівень, більше логіки" },
+    { id: "master",  title: "🔴 Senior",  desc: "Складні задачі та підводні камені" },
   ];
 
   function getCourseLevel(courseId) {
@@ -305,28 +264,22 @@
     save();
   }
 
-  // task.difficulty: "Junior" | "Middle" | "Senior" | "all"
   function visibleTaskRefs(courseId, moduleId) {
     const course = DB.find(c => c.id === courseId);
     const mod = course?.modules.find(m => m.id === moduleId);
     if (!course || !mod) return [];
 
-    const lvl = getCourseLevel(courseId) || "Junior";
+    const lvl = getCourseLevel(courseId) || "rookie";
 
     return (mod.tasks || [])
       .map((t, idx) => ({ t, origIdx: idx }))
       .filter(r => {
-        const d = r.t.difficulty || "Junior";
+        const d = r.t.difficulty || "rookie";
         return d === "all" || d === lvl;
       });
   }
 
-  // ===========================
-  // Current pointers
-  // ===========================
-  let currentCourse = null;
-  let currentModule = null;
-  let currentTaskIndex = 0;
+  let currentCourse = null, currentModule = null, currentTaskIndex = 0;
 
   // ===========================
   // User UI
@@ -334,62 +287,42 @@
   function showAuth() { authOverlay && authOverlay.classList.add("active"); }
   function hideAuth() { authOverlay && authOverlay.classList.remove("active"); }
 
-function updateUserUI() {
-  if (!state.user) return;
+  function updateUserUI() {
+    if (!state.user) return;
+    const beforeLastDay = state.user.lastDay;
+    const beforeStreak = state.user.streak;
 
-  // перевіримо, чи streak змінився
-  const beforeLastDay = state.user.lastDay;
-  const beforeStreak = state.user.streak;
+    updateStreak(state.user);
 
-  updateStreak(state.user);
+    if (beforeLastDay !== state.user.lastDay || beforeStreak !== state.user.streak) save();
 
-  const streakChanged =
-    beforeLastDay !== state.user.lastDay ||
-    beforeStreak !== state.user.streak;
+    if ($("uiName")) $("uiName").innerText = state.user.name;
+    if ($("uiAvatar")) $("uiAvatar").innerText = (state.user.name[0] || "U").toUpperCase();
+    if ($("uiXP")) $("uiXP").innerText = `${state.user.xp} XP`;
+    if ($("uiStreak")) $("uiStreak").innerText = String(state.user.streak || 1);
 
-  $("uiName").innerText = state.user.name;
-  $("uiAvatar").innerText = (state.user.name[0] || "U").toUpperCase();
-  $("uiXP").innerText = `${state.user.xp} XP`;
-  $("uiStreak").innerText = String(state.user.streak || 1);
+    const lvl = levelFromXp(state.user.xp || 0);
+    if ($("uiLevel")) $("uiLevel").innerText = `Level ${lvl.level}`;
+    if ($("uiLevelXP")) $("uiLevelXP").innerText = `${lvl.inLevelXp}/${lvl.nextLevelXp} XP`;
+    if ($("uiLevelFill")) $("uiLevelFill").style.width = `${Math.round((lvl.inLevelXp / lvl.nextLevelXp) * 100)}%`;
 
-  const lvl = levelFromXp(state.user.xp || 0);
-  $("uiLevel").innerText = `Level ${lvl.level}`;
-  $("uiLevelXP").innerText = `${lvl.inLevelXp}/${lvl.nextLevelXp} XP`;
-  $("uiLevelFill").style.width = `${Math.round((lvl.inLevelXp / lvl.nextLevelXp) * 100)}%`;
-
-  const hx = $("homeTotalXP"); if (hx) hx.textContent = String(state.user.xp || 0);
-  const hs = $("homeStreak"); if (hs) hs.textContent = String(state.user.streak || 1);
-
-  // зберігаємо тільки якщо streak реально змінився
-  if (streakChanged) save();
-}
+    if ($("homeTotalXP")) $("homeTotalXP").textContent = String(state.user.xp || 0);
+    if ($("homeStreak")) $("homeStreak").textContent = String(state.user.streak || 1);
+  }
 
   // ===========================
   // Progress helpers
   // ===========================
-  function uid(courseId, moduleId, idx) {
-    return `${courseId}_${moduleId}_${idx}`;
-  }
-
-  function completionState(id) {
-    return state.user?.completed?.[id] || null; // "xp" | "no_xp"
-  }
-
+  function uid(courseId, moduleId, idx) { return `${courseId}_${moduleId}_${idx}`; }
+  function completionState(id) { return state.user?.completed?.[id] || null; }
   function setCompleted(id, mode) {
     state.user.completed = state.user.completed || {};
     state.user.completed[id] = mode;
     save();
   }
+  function isDone(courseId, moduleId, idx) { return !!completionState(uid(courseId, moduleId, idx)); }
 
-  function isDone(courseId, moduleId, idx) {
-    const id = uid(courseId, moduleId, idx);
-    return !!completionState(id);
-  }
-
-  function getAttempts(id) {
-    return Number(state.user?.attempts?.[id] || 0);
-  }
-
+  function getAttempts(id) { return Number(state.user?.attempts?.[id] || 0); }
   function incAttempts(id) {
     state.user.attempts = state.user.attempts || {};
     state.user.attempts[id] = getAttempts(id) + 1;
@@ -413,29 +346,34 @@ function updateUserUI() {
 
   function courseProgress(course) {
     let total = 0, done = 0;
-    const lvl = getCourseLevel(course.id) || "Junior";
-
+    const lvl = getCourseLevel(course.id) || "rookie";
     course.modules.forEach(m => {
       (m.tasks || []).forEach((t, idx) => {
-        const d = t.difficulty || "Junior";
+        const d = t.difficulty || "rookie";
         if (!(d === "all" || d === lvl)) return;
         total++;
         if (isDone(course.id, m.id, idx)) done++;
       });
     });
+    return { total, done, pct: total ? Math.round((done / total) * 100) : 0 };
+  }
 
-    const pct = total ? Math.round((done / total) * 100) : 0;
-    return { total, done, pct };
+  function getModuleTasks(courseId, moduleId) {
+    const course = DB.find(c => c.id === courseId);
+    const mod = course?.modules.find(m => m.id === moduleId);
+    if (!course || !mod) return [];
+    if (Array.isArray(mod.tasks)) return mod.tasks;
+    if (Array.isArray(mod.taskRefs) && typeof TASKS === "object") {
+      return mod.taskRefs.map(id => TASKS[id]).filter(Boolean);
+    }
+    return [];
   }
 
   function moduleProgress(courseId, moduleId) {
     const tasks = getModuleTasks(courseId, moduleId);
     if (!tasks.length) return { done: 0, total: 0 };
-  
     let done = 0;
-    tasks.forEach((t, idx) => {
-      if (isDone(courseId, moduleId, idx)) done++;
-    });
+    tasks.forEach((t, idx) => { if (isDone(courseId, moduleId, idx)) done++; });
     return { done, total: tasks.length };
   }
 
@@ -444,60 +382,24 @@ function updateUserUI() {
     return mp.total > 0 && mp.done === mp.total;
   }
 
-  function getModuleTasks(courseId, moduleId) {
-    const course = DB.find(c => c.id === courseId);
-    const mod = course?.modules.find(m => m.id === moduleId);
-    if (!course || !mod) return [];
-  
-    // Старий формат: tasks = [{...}, {...}]
-    if (Array.isArray(mod.tasks)) return mod.tasks;
-  
-    // Новий формат приклад: taskRefs = ["t_print_1", "t_print_2"]
-    // і глобальний словник TASKS = { id: taskObj }
-    if (Array.isArray(mod.taskRefs) && typeof TASKS === "object") {
-      return mod.taskRefs.map(id => TASKS[id]).filter(Boolean);
-    }
-  
-    return [];
-  }
-
   function calculateBonuses({ baseXp, attemptsBefore, taskId, courseId }) {
-    let sniper = 0;
-    let speed = 0;
-    let streakBonus = 0;
-  
-    // 🎯 Sniper
-    if (attemptsBefore === 0) {
-      sniper = Math.round(baseXp * 0.2);
-    }
-  
-    // ⚡ Speedrun
+    let sniper = 0, speed = 0, streakBonus = 0;
+    if (attemptsBefore === 0) sniper = Math.round(baseXp * 0.2);
     const session = state.user.taskSession;
     if (session && session.id === taskId) {
       const elapsedSec = (Date.now() - session.startedAt) / 1000;
-  
-      const level = (typeof getCourseLevel === "function" ? getCourseLevel(courseId) : null) || "Junior";
-      let limit = (level === "Senior") ? 360 : (level === "Middle") ? 240 : 180;
-  
-      if (elapsedSec <= limit) {
-        speed = Math.round(baseXp * 0.1);
-      }
+      const level = getCourseLevel(courseId) || "rookie";
+      const limit = (level === "master") ? 360 : (level === "adept") ? 240 : 180;
+      if (elapsedSec <= limit) speed = Math.round(baseXp * 0.1);
     }
-  
-    // 🔥 Streak
-    const streak = state.user.streak || 1;
-    streakBonus = Math.min(10, streak);
-  
+    streakBonus = Math.min(10, state.user.streak || 1);
     return { sniper, speed, streakBonus };
   }
 
   // ===========================
   // Sidebar rendering
   // ===========================
-  function isRoute(name) {
-    const p = routeParse();
-    return (p[0] || "home") === name;
-  }
+  function isRoute(name) { return (routeParse()[0] || "home") === name; }
 
   function renderSidebarHome() {
     const sb = $("sidebarContent");
@@ -510,8 +412,7 @@ function updateUserUI() {
     sb.querySelectorAll("[data-nav]").forEach(btn => {
       btn.addEventListener("click", () => {
         const to = btn.getAttribute("data-nav");
-        if (to === "settings") openSettings();
-        else goto(`/${to}`);
+        if (to === "settings") openSettings(); else goto(`/${to}`);
       });
     });
   }
@@ -528,14 +429,10 @@ function updateUserUI() {
         <button class="menu-btn" data-course-level="${course.id}">
         <i class="ri-equalizer-line"></i> Рівень курсу
       </button>
-      
       ${course.modules.map(m => `
       <button class="menu-btn" data-open-module="${course.id}|${m.id}">
-      <i class="${m.icon || 'ri-folder-line'}" 
-      style="color:${m.color || 'var(--text-dim)'}"></i> ${escapeHtml(m.title)}
-      </button>
-    `).join("")}
-
+      <i class="${m.icon || 'ri-folder-line'}" style="color:${m.color || 'var(--text-dim)'}"></i> ${escapeHtml(m.title)}
+      </button>`).join("")}
       <button class="menu-btn" data-nav="leaderboard"><i class="ri-trophy-line"></i> Рейтинг</button>
       <button class="menu-btn" data-nav="settings"><i class="ri-settings-3-line"></i> Налаштування</button>
     `;
@@ -543,15 +440,7 @@ function updateUserUI() {
     sb.querySelectorAll("[data-course-level]").forEach(b => {
       b.onclick = () => {
         const cid = b.getAttribute("data-course-level");
-    
-        // просто відкриваємо сторінку курсу (там уже є твої картки рівнів)
-        goto(`/course/${cid}`);
-    
-        // і мʼяко скролимо до блоку рівнів (додамо id в розмітку)
-        setTimeout(() => {
-          document.getElementById("levelCards")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 50);
+        openLevelPicker(cid, () => renderCourseModules(cid));
       };
     });
 
@@ -577,13 +466,11 @@ function updateUserUI() {
   function renderSidebarModuleTasks(courseId, moduleId, taskIdx) {
     const sb = $("sidebarContent");
     if (!sb) return;
-  
     const course = DB.find(c => c.id === courseId);
     const mod = course?.modules.find(m => m.id === moduleId);
     if (!course || !mod) return renderSidebarHome();
   
     const tasks = getModuleTasks(courseId, moduleId);
-  
     const tasksHtml = tasks.map((t, idx) => {
       const id = uid(courseId, moduleId, idx);
       const cs = completionState(id);
@@ -592,43 +479,31 @@ function updateUserUI() {
       const active = (idx === Number(taskIdx)) ? "active" : "";
       const icon = done ? "ri-checkbox-circle-fill" : "ri-checkbox-blank-circle-line";
       const extraCls = `${done ? "done" : ""} ${noxp ? "noxp" : ""}`;
-  
       const tag = t.kind && t.kind !== "practice"
         ? `<span class="task-tag exam">${escapeHtml(kindLabel(t.kind))}</span>`
         : (noxp ? `<span class="task-tag noxp">Без XP</span>` : "");
-  
       return `
         <div class="task-link ${active} ${extraCls}" data-open-task="${courseId}|${moduleId}|${idx}">
-          <div class="left">
-            <i class="${icon}"></i>
-            <span>${idx + 1}. ${escapeHtml(t.title)}</span>
-          </div>
-          ${tag}
+          <div class="left"><i class="${icon}"></i><span>${idx + 1}. ${escapeHtml(t.title)}</span></div>${tag}
         </div>
       `;
     }).join("");
   
-    // ... решту твого коду лишаємо як було
-    // важливо: mp тепер коректний, бо moduleProgress вже через getModuleTasks
     const mp = moduleProgress(courseId, moduleId);
     const pct = mp.total ? Math.round((mp.done / mp.total) * 100) : 0;
   
     sb.innerHTML = `
       <button class="menu-btn" data-nav="modules"><i class="ri-arrow-left-line"></i> До модулів</button>
-  
       <div style="margin:12px 0 8px; padding:0 10px; color:var(--text-dim); font-size:12px; font-weight:900;">
         ${escapeHtml(course.title.toUpperCase())} • ${escapeHtml(mod.title.toUpperCase())}
       </div>
-  
       <div style="padding:0 10px 12px;">
         <div class="progress-line"><div class="progress-fill" style="width:${pct}%"></div></div>
         <div class="tiny mutedish" style="text-align:right;margin-top:6px;">${mp.done}/${mp.total} • ${pct}%</div>
       </div>
-  
       <div class="task-list-container open" style="display:block;">
-        ${tasksHtml || `<div style="padding:10px;color:var(--text-dim)">Немає завдань у цьому модулі (перевір taskRefs/tasks).</div>`}
+        ${tasksHtml || `<div style="padding:10px;color:var(--text-dim)">Немає завдань у цьому модулі.</div>`}
       </div>
-  
       <div style="margin-top:10px; padding:0 10px;">
         <button class="menu-btn" data-nav="leaderboard"><i class="ri-trophy-line"></i> Рейтинг</button>
         <button class="menu-btn" data-nav="settings"><i class="ri-settings-3-line"></i> Налаштування</button>
@@ -651,24 +526,16 @@ function updateUserUI() {
   }
   
   function openCourseWithLevel(cid) {
-    goto(`/course/${cid}`);
-  
-    // якщо рівень ще не обраний — просто підкажемо (без попапа)
-    if (!getCourseLevel(cid)) {
-      toast("🎚️ Обери складність курсу (Junior / Middle / Senior) — це впливає на задачі.");
-    }
+    if (!getCourseLevel(cid)) openLevelPicker(cid, () => goto(`/course/${cid}`));
+    else goto(`/course/${cid}`);
   }
 
-
-
-  
   // ===========================
   // Home / modules / leaderboard views
   // ===========================
   function renderCoursesGrid() {
     const grid = $("coursesList");
     if (!grid) return;
-
     grid.innerHTML = DB.map(c => {
       const p = courseProgress(c);
       return `
@@ -684,15 +551,14 @@ function updateUserUI() {
 
     grid.querySelectorAll("[data-open-course]").forEach(card => {
       card.addEventListener("click", () => {
-        const cid = card.getAttribute("data-open-course");
-        openCourseWithLevel(cid);
+        openCourseWithLevel(card.getAttribute("data-open-course"));
       });
     });
   }
 
   function renderHome() {
     setActiveView(viewHome);
-    $("breadcrumbs").innerText = "Головна";
+    if($("breadcrumbs")) $("breadcrumbs").innerText = "Головна";
     renderSidebarHome();
     renderCoursesGrid();
   }
@@ -702,20 +568,14 @@ function updateUserUI() {
     if (!course) { toast("Курс не знайдено"); goto("/home"); return; }
 
     setActiveView(viewModules);
-    $("breadcrumbs").innerHTML = `<span class="crumb" data-crumb-home style="cursor:pointer">Головна</span> / ${escapeHtml(course.title)}`;
-    $("modulesTitle").textContent = course.title;
+    if($("breadcrumbs")) $("breadcrumbs").innerHTML = `<span class="crumb" data-crumb-home style="cursor:pointer">Головна</span> / ${escapeHtml(course.title)}`;
+    if($("modulesTitle")) $("modulesTitle").textContent = course.title;
 
-    // Отримуємо поточний рівень (за замовчуванням Junior)
-    const currentLvl = (typeof getCourseLevel === "function" ? getCourseLevel(course.id) : null) || "Junior";
-    if (!getCourseLevel(course.id)) {
-      toast("👋 Спочатку обери складність зверху — потім відкривай модулі 🙂");
-    }
-    // Генеруємо красиві картки рівнів
+    const currentLvl = getCourseLevel(course.id) || "rookie";
     const levelsHtml = LEVELS.map(l => {
       const isActive = l.id === currentLvl;
-      const icon = l.title.split(" ")[0]; // Беремо смайлик (🟢, 🟡, 🔴)
-      const name = l.title.split(" ")[1]; // Беремо назву (Junior, Middle, Senior)
-      
+      const icon = l.title.split(" ")[0];
+      const name = l.title.split(" ")[1];
       return `
         <button class="lvl-btn ${isActive ? 'active' : ''}" data-set-lvl="${l.id}">
           <div class="lvl-icon">${icon}</div>
@@ -727,39 +587,33 @@ function updateUserUI() {
       `;
     }).join("");
 
-    // Вставляємо опис та новий віджет рівнів
-    $("modulesDesc").innerHTML = `
+    if($("modulesDesc")) $("modulesDesc").innerHTML = `
       <p style="color: var(--text-dim); margin-bottom: 20px; font-size: 16px;">${escapeHtml(course.desc || "Обери модуль")}</p>
-      
-      <div class="level-selector-inline" id="levelCards">
+      <div class="level-selector-inline">
         <div class="level-selector-header">
           <span>🎚️ Обери складність курсу</span>
           <div class="info-tooltip">
             <i class="ri-question-line"></i>
-            <div class="tooltip-text">Від рівня залежить складність завдань у модулях. Ти можеш змінити його будь-коли без втрати прогресу!</div>
+            <div class="tooltip-text">Від рівня залежить складність завдань. Можна змінити без втрати прогресу!</div>
           </div>
         </div>
-        <div class="level-options">
-          ${levelsHtml}
-        </div>
+        <div class="level-options">${levelsHtml}</div>
       </div>
     `;
 
-    // Вішаємо кліки на нові кнопки рівнів
     document.querySelectorAll("[data-set-lvl]").forEach(btn => {
       btn.onclick = () => {
         const newLvl = btn.getAttribute("data-set-lvl");
         if (newLvl !== currentLvl) {
           setCourseLevel(course.id, newLvl);
-          renderCourseModules(course.id); // Перемальовуємо, щоб оновити прогрес-бари та активну кнопку
+          renderCourseModules(course.id);
           toast(`Рівень змінено на ${LEVELS.find(x => x.id === newLvl).title}`);
         }
       };
     });
 
-    // Рендер карток модулів зі збереженням твоїх іконок та кольорів
     const list = $("modulesList");
-    list.innerHTML = course.modules.map(m => {
+    if(list) list.innerHTML = course.modules.map(m => {
       const mp = moduleProgress(course.id, m.id);
       const pct = mp.total ? Math.round((mp.done / mp.total) * 100) : 0;
       return `
@@ -775,8 +629,7 @@ function updateUserUI() {
       `;
     }).join("");
 
-    // Кліки по модулях
-    list.querySelectorAll("[data-open-module]").forEach(el => {
+    list?.querySelectorAll("[data-open-module]").forEach(el => {
       el.addEventListener("click", () => {
         const [cid, mid] = el.getAttribute("data-open-module").split("|");
         goto(`/lesson/${cid}/${mid}/0`);
@@ -787,65 +640,45 @@ function updateUserUI() {
     document.querySelectorAll("[data-crumb-home]").forEach(el => el.onclick = () => goto("/home"));
   }
 
-async function renderLeaderboard() {
+  async function renderLeaderboard() {
     setActiveView(viewLeaderboard);
-    $("breadcrumbs").innerText = "🏆 Рейтинг Академії";
+    if($("breadcrumbs")) $("breadcrumbs").innerText = "🏆 Рейтинг Академії";
 
     const listEl = $("leaderboardList");
-    // Показуємо скелетон/завантаження, поки чекаємо дані з бази
+    if(!listEl) return;
     listEl.innerHTML = `<div style="text-align:center; padding: 40px 20px; color: var(--text-dim); font-weight: 700; font-size: 16px;">Завантаження рейтингу... ⏳</div>`;
 
     try {
       let rows = [];
-
       if (supa) {
-        // Витягуємо весь збережений прогрес з Supabase
-        const { data, error } = await supa
-          .from("progress")
-          .select("state");
-
+        const { data, error } = await supa.from("progress").select("state");
         if (error) throw error;
-
         if (data) {
-          // Дістаємо дані користувачів із JSON-стану
           rows = data
             .map(row => row.state?.user)
-            .filter(u => u && typeof u.xp === 'number') // Відкидаємо пусті рядки
-            .map(u => ({
-              name: u.name || "Анонім",
-              xp: u.xp || 0,
-              streak: u.streak || 1
-            }));
+            .filter(u => u && typeof u.xp === 'number')
+            .map(u => ({ name: u.name || "Анонім", xp: u.xp || 0, streak: u.streak || 1 }));
         }
       } else {
-        // Fallback: якщо Supabase раптом відключений, показуємо локальні дані
         const me = state.user ? { name: state.user.name, xp: state.user.xp, streak: state.user.streak } : null;
         rows = state.leaderboard.concat(me ? [me] : []);
       }
 
-      // Видаляємо дублікати за іменем (залишаємо той запис, де більше XP)
       const byName = new Map();
       rows.forEach(r => {
         const prev = byName.get(r.name);
         if (!prev || r.xp > prev.xp) byName.set(r.name, r);
       });
 
-      // Сортуємо від найбільшого XP до найменшого і беремо ТОП-20
-      const sortedRows = Array.from(byName.values())
-        .sort((a, b) => b.xp - a.xp)
-        .slice(0, 20);
-
+      const sortedRows = Array.from(byName.values()).sort((a, b) => b.xp - a.xp).slice(0, 20);
       const myName = state.user?.name;
 
       if (sortedRows.length === 0) {
         listEl.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--text-dim);">Ще немає жодного гравця. Будь першим!</div>`;
       } else {
-        // Рендеримо список
         listEl.innerHTML = sortedRows.map((r, i) => {
           const isMe = r.name === myName;
-          // Роздаємо медалі
           const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `<span style="color:var(--text-dim); font-size:14px;">${i + 1}.</span>`;
-          
           return `
             <div class="rowBoard ${isMe ? "me" : ""}">
               <div style="display:flex; align-items:center; gap: 14px;">
@@ -862,105 +695,61 @@ async function renderLeaderboard() {
           `;
         }).join("");
       }
-
     } catch (err) {
       console.error("Помилка завантаження рейтингу:", err);
       listEl.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--danger);">Не вдалося завантажити дані. Перевір з'єднання або налаштування Supabase.</div>`;
     }
-
     renderSidebarHome();
   }
 
-
-
-  
-
-// ===========================
+  // ===========================
   // SKULPT PYTHON ENGINE
   // ===========================
   function runPythonSkulpt(code) {
     return new Promise((resolve) => {
       let output = "";
-      
-      // Функція для збору виводу print()
-      function outf(text) { 
-        output += text; 
-      }
-      
-      // Функція для читання вбудованих файлів Skulpt
+      function outf(text) { output += text; }
       function builtinRead(x) {
-        if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined) {
-          throw "File not found: '" + x + "'";
-        }
+        if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined) throw "File not found: '" + x + "'";
         return Sk.builtinFiles["files"][x];
       }
 
       Sk.configure({
-        output: outf,
-        read: builtinRead,
-        execLimit: 5000, // Захист від нескінченних циклів (5 секунд)
-        __future__: Sk.python3, // <--- ВМИКАЄМО СУЧАСНИЙ PYTHON 3 🚀
+        output: outf, read: builtinRead, execLimit: 5000, __future__: Sk.python3,
         inputfun: function (promptMsg) {
           return new Promise((resolveInput) => {
-            // Використовуємо браузерний prompt для input()
             let val = window.prompt(promptMsg || "");
             resolveInput(val !== null ? val : "");
           });
         }
       });
 
-      // Асинхронний запуск коду
-      let myPromise = Sk.misceval.asyncToPromise(function() {
-        return Sk.importMainWithBody("<stdin>", false, code, true);
-      });
-
+      let myPromise = Sk.misceval.asyncToPromise(function() { return Sk.importMainWithBody("<stdin>", false, code, true); });
       myPromise.then(
-        function() {
-          resolve({ ok: true, stdout: output.replace(/\s+$/g, "") });
-        },
-        function(err) {
-          resolve({ ok: false, error: err.toString(), stdout: output.replace(/\s+$/g, "") });
-        }
+        function() { resolve({ ok: true, stdout: output.replace(/\s+$/g, "") }); },
+        function(err) { resolve({ ok: false, error: err.toString(), stdout: output.replace(/\s+$/g, "") }); }
       );
     });
   }
 
   // ===========================
-  // Smart checker — normalization
+  // Smart checker
   // ===========================
   function normalizeText(text, preset = "friendly") {
-    let s = String(text ?? "");
-    s = s.replace(/\r\n?/g, "\n");       // newlines
-    s = s.replace(/\u00A0/g, " ");       // NBSP
-
+    let s = String(text ?? "").replace(/\r\n?/g, "\n").replace(/\u00A0/g, " ");
     if (preset !== "strict") {
-      // quotes
-      s = s.replace(/[“”«»„]/g, '"').replace(/[‚]/g, "'");
-      // apostrophes
-      s = s.replace(/[ʼ’‘`´]/g, "'");
-      // dashes/minus
-      s = s.replace(/[–—−]/g, "-");
+      s = s.replace(/[“”«»„]/g, '"').replace(/[‚]/g, "'").replace(/[ʼ’‘`´]/g, "'").replace(/[–—−]/g, "-");
     }
-
     if (preset === "strict") return s;
-
-    // trim line endings
     s = s.split("\n").map(line => line.replace(/[ \t]+$/g, "")).join("\n");
-
     if (preset === "soft") return s.trim();
-
-    if (preset === "friendly") {
-      s = s.split("\n").map(line => line.replace(/[ \t]{2,}/g, " ").trim()).join("\n");
-      return s.trim();
-    }
-
+    if (preset === "friendly") return s.split("\n").map(line => line.replace(/[ \t]{2,}/g, " ").trim()).join("\n").trim();
     if (preset === "loose") return s.replace(/\s+/g, " ").trim();
     return s.trim();
   }
 
   function regexTest(text, pattern, flags = "") {
-    try { return new RegExp(pattern, flags).test(text); }
-    catch { return false; }
+    try { return new RegExp(pattern, flags).test(text); } catch { return false; }
   }
 
   function approxEqual(a, b, eps = 1e-6) {
@@ -970,19 +759,11 @@ async function renderLeaderboard() {
   }
 
   function countRegexMatches(text, pattern) {
-    try {
-      const re = new RegExp(pattern, "g");
-      const m = text.match(re);
-      return m ? m.length : 0;
-    } catch {
-      return 0;
-    }
+    try { const m = text.match(new RegExp(pattern, "g")); return m ? m.length : 0; } catch { return 0; }
   }
 
-  // strip strings/comments so codeIncludes/codeRegex cannot be faked
   function stripStringsAndComments(code) {
-    let s = String(code ?? "");
-    s = s.replace(/#.*$/gm, "");
+    let s = String(code ?? "").replace(/#.*$/gm, "");
     s = s.replace(/("""|''')[\s\S]*?\1/g, "");
     s = s.replace(/("([^"\\]|\\.)*")|('([^'\\]|\\.)*')/g, "''");
     return s;
@@ -990,36 +771,19 @@ async function renderLeaderboard() {
 
   function detectOutputIssues(gotRaw, expRaw) {
     const hints = [];
-    gotRaw = String(gotRaw ?? "");
-    expRaw = String(expRaw ?? "");
-
-    const dashVariant = /[–—−]/.test(expRaw) || /[–—−]/.test(gotRaw);
-    const aposVariant = /[ʼ’]/.test(expRaw) || /[ʼ’]/.test(gotRaw);
-    const nbsp = expRaw.includes("\u00A0") || gotRaw.includes("\u00A0");
-
-    // if friendly matches but raw differs -> typography issue
-    if (dashVariant && normalizeText(gotRaw, "friendly") === normalizeText(expRaw, "friendly") && gotRaw !== expRaw) {
-      hints.push("⚠️ Різниця лише в тире/мінусі: '-' vs '—/–'. Скопіюй символ з умови або використовуй '-' якщо дозволено.");
-    }
-    if (aposVariant && normalizeText(gotRaw, "friendly") === normalizeText(expRaw, "friendly") && gotRaw !== expRaw) {
-      hints.push("⚠️ Різниця лише в апострофі: \"'\" vs \"ʼ/’\". Скопіюй апостроф з умови або набери інший.");
-    }
-    if (nbsp) {
-      hints.push("⚠️ Є невидимий пробіл (NBSP). Видали пробіли й набери заново.");
-    }
+    gotRaw = String(gotRaw ?? ""); expRaw = String(expRaw ?? "");
+    if ((/[–—−]/.test(expRaw) || /[–—−]/.test(gotRaw)) && normalizeText(gotRaw, "friendly") === normalizeText(expRaw, "friendly") && gotRaw !== expRaw) hints.push("⚠️ Різниця лише в тире/мінусі.");
+    if ((/[ʼ’]/.test(expRaw) || /[ʼ’]/.test(gotRaw)) && normalizeText(gotRaw, "friendly") === normalizeText(expRaw, "friendly") && gotRaw !== expRaw) hints.push("⚠️ Різниця лише в апострофі.");
+    if (expRaw.includes("\u00A0") || gotRaw.includes("\u00A0")) hints.push("⚠️ Є невидимий пробіл (NBSP).");
     return hints;
   }
 
   function visualizeWhitespace(s) {
-    return String(s ?? "")
-      .replace(/\r\n?/g, "\n")
-      .replace(/ /g, "·")
-      .replace(/\t/g, "⇥")
-      .replace(/\n/g, "↵\n");
+    return String(s ?? "").replace(/\r\n?/g, "\n").replace(/ /g, "·").replace(/\t/g, "⇥").replace(/\n/g, "↵\n");
   }
 
   async function runTaskTestsSmart(task, code) {
-  const exec = await runPythonSkulpt(code);
+    const exec = await runPythonSkulpt(code);
     const results = [];
     const tests = task.tests || [];
     const rawStdout = String(exec.stdout ?? "");
@@ -1029,7 +793,6 @@ async function renderLeaderboard() {
       const type = t.type || "stdoutEquals";
       const name = t.name || type;
 
-      // codeRegex count (global)
       if (type === "codeRegex" && t.flags === "g") {
         const cnt = countRegexMatches(safeCode, t.pattern);
         const need = t.min ?? 2;
@@ -1040,7 +803,7 @@ async function renderLeaderboard() {
 
       const stdoutTypes = new Set(["stdoutEquals","stdoutOneOf","stdoutRegex","stdoutContainsLines","stdoutUnorderedLines","stdoutNumber"]);
       if (!exec.ok && stdoutTypes.has(type)) {
-        results.push({ name, pass: false, reason: `Помилка виконання: ${exec.error}`, want: t.value ?? (t.values ? t.values.join(" | ") : ""), got: rawStdout });
+        results.push({ name, pass: false, reason: `Помилка виконання: ${exec.error}`, want: t.value ?? "", got: rawStdout });
         continue;
       }
 
@@ -1054,77 +817,15 @@ async function renderLeaderboard() {
         continue;
       }
 
-      if (type === "stdoutOneOf") {
-        const normalize = t.normalize || "friendly";
-        const got = normalizeText(rawStdout, normalize);
-        const wants = (t.values || []).map(v => normalizeText(v, normalize));
-        const pass = wants.includes(got);
-        results.push({ name, pass, reason: pass ? "OK" : "Вивід має бути одним із варіантів", want: wants.join(" | "), got });
-        continue;
-      }
-
-      if (type === "stdoutRegex") {
-        const normalize = t.normalize || "friendly";
-        const got = normalizeText(rawStdout, normalize);
-        const pass = regexTest(got, t.pattern, t.flags || "");
-        results.push({ name, pass, reason: pass ? "OK" : "Вивід не відповідає шаблону", want: `/${t.pattern}/${t.flags || ""}`, got });
-        continue;
-      }
-
-      if (type === "stdoutContainsLines") {
-        const normalize = t.normalize || "friendly";
-        const gotLines = (normalizeText(rawStdout, normalize) || "").split("\n").filter(Boolean);
-        const need = (t.lines || []).map(x => normalizeText(x, normalize));
-        const pass = need.every(line => gotLines.includes(line));
-        results.push({ name, pass, reason: pass ? "OK" : "Не всі потрібні рядки знайдені", want: need.join("\\n"), got: gotLines.join("\\n") });
-        continue;
-      }
-
-      if (type === "stdoutUnorderedLines") {
-        const normalize = t.normalize || "friendly";
-        const got = (normalizeText(rawStdout, normalize) || "").split("\n").filter(Boolean).sort();
-        const want = (normalizeText(t.value, normalize) || "").split("\n").filter(Boolean).sort();
-        const pass = got.length === want.length && got.every((x, i) => x === want[i]);
-        results.push({ name, pass, reason: pass ? "OK" : "Рядки не збігаються (порядок не важливий)", want: want.join("\\n"), got: got.join("\\n") });
-        continue;
-      }
-
-      if (type === "stdoutNumber") {
-        const got = normalizeText(rawStdout, "loose");
-        const pass = approxEqual(got, t.value, t.eps ?? 1e-6);
-        results.push({ name, pass, reason: pass ? "OK" : "Число не збігається", want: String(t.value), got });
-        continue;
-      }
-
-      // code checks (sanitized)
       if (type === "codeIncludes") {
         const pass = safeCode.includes(t.value);
         results.push({ name, pass, reason: pass ? "OK" : `У коді має бути: ${t.value}`, want: t.value, got: "" });
         continue;
       }
 
-      if (type === "codeAll") {
-        const miss = (t.values || []).filter(v => !safeCode.includes(v));
-        const pass = miss.length === 0;
-        results.push({ name, pass, reason: pass ? "OK" : `Додай у код: ${miss.join(", ")}`, want: (t.values || []).join(", "), got: "" });
-        continue;
-      }
-
       if (type === "codeRegex") {
         const pass = regexTest(safeCode, t.pattern, t.flags || "m");
         results.push({ name, pass, reason: pass ? "OK" : "Код не відповідає шаблону", want: `/${t.pattern}/${t.flags || "m"}`, got: "" });
-        continue;
-      }
-
-      if (type === "requireIfElse") {
-        const pass = /\bif\b/.test(safeCode) && /\belse\b/.test(safeCode);
-        results.push({ name, pass, reason: pass ? "OK" : "Потрібно використати if та else", want: "if + else", got: "" });
-        continue;
-      }
-
-      if (type === "requireForRange") {
-        const pass = new RegExp(`\\brange\\s*\\(\\s*${t.start}\\s*,\\s*${t.end}\\s*\\)`).test(safeCode);
-        results.push({ name, pass, reason: pass ? "OK" : `Потрібно range(${t.start}, ${t.end})`, want: `range(${t.start},${t.end})`, got: "" });
         continue;
       }
 
@@ -1135,37 +836,30 @@ async function renderLeaderboard() {
     return { allPass, results, exec };
   }
 
-function buildTerminalReport(runResult) {
+  // ===========================
+  // SMART TERMINAL (HTML)
+  // ===========================
+  function buildTerminalReport(runResult) {
     const { exec, results } = runResult;
     
-    // Починаємо формувати HTML-рядок
     let html = `<div style="font-weight:900; color:var(--text-dim); margin-bottom:14px; text-transform:uppercase; font-size:11px; letter-spacing:1px;">Python Academy • Terminal</div>`;
 
-    // ==========================================
-    // БЛОК 1: ЩО НАДРУКУВАЛА ПРОГРАМА (ВИВІД)
-    // ==========================================
     html += `<div style="margin-bottom: 20px;">`;
     html += `<div style="font-size:12px; color:var(--primary); font-weight:900; margin-bottom:6px;">📺 Твій вивід:</div>`;
     
     if (!exec.ok) {
-      // Якщо синтаксична помилка (Python впав) - робимо червоний фон
       html += `<div style="color: #fca5a5; background: rgba(239, 68, 68, 0.15); border-left: 3px solid #ef4444; padding: 10px 14px; border-radius: 6px; font-family: var(--mono); font-size: 14px; white-space: pre-wrap;">${escapeHtml(exec.error)}</div>`;
     } else {
-      // Якщо програма відпрацювала нормально - нейтральний фон
       const outText = exec.stdout ? escapeHtml(exec.stdout) : "<i style='color: rgba(255,255,255,0.3);'>(нічого не виведено)</i>";
       html += `<div style="color: var(--text); background: rgba(255, 255, 255, 0.05); border-left: 3px solid var(--text-dim); padding: 10px 14px; border-radius: 6px; font-family: var(--mono); font-size: 14px; white-space: pre-wrap; min-height: 42px;">${outText}</div>`;
     }
     html += `</div>`;
 
-    // ==========================================
-    // БЛОК 2: ПЕРЕВІРКА ТЕСТІВ (ЗВІТ)
-    // ==========================================
     html += `<div>`;
     html += `<div style="font-size:12px; color:var(--primary); font-weight:900; margin-bottom:6px;">🎯 Результат перевірки:</div>`;
 
-    // Визначаємо загальний колір блоку перевірки
     const allPass = results.length ? results.every(r => r.pass) : true;
-    const testBg = allPass ? "rgba(34, 197, 94, 0.1)" : "rgba(251, 191, 36, 0.1)"; // Зелений або Жовтий
+    const testBg = allPass ? "rgba(34, 197, 94, 0.1)" : "rgba(251, 191, 36, 0.1)";
     const testBorder = allPass ? "var(--success)" : "var(--warn)";
 
     html += `<div style="background: ${testBg}; border-left: 3px solid ${testBorder}; padding: 12px 14px; border-radius: 6px;">`;
@@ -1178,13 +872,11 @@ function buildTerminalReport(runResult) {
       html += `<strong style="color:${color}; font-size:14px;">${icon} ${escapeHtml(r.name)}</strong>`;
 
       if (!r.pass) {
-        // Якщо тест впав, показуємо деталі з відступом
         html += `<div style="margin-left: 24px; margin-top: 6px; font-size: 13px; color: rgba(255,255,255,0.85); background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 8px;">`;
         if (r.reason) html += `<div style="margin-bottom:4px;"><span style="color:var(--danger); font-weight:700;">Помилка:</span> ${escapeHtml(r.reason)}</div>`;
         if (r.want !== undefined && String(r.want) !== "") html += `<div style="margin-bottom:2px;"><span style="color:var(--text-dim);">Очікувалось:</span> <code style="color:var(--success); font-weight:900;">${escapeHtml(String(r.want))}</code></div>`;
         if (r.got !== undefined && String(r.got) !== "") html += `<div><span style="color:var(--text-dim);">Отримано:</span> <code style="color:var(--danger); font-weight:900;">${escapeHtml(String(r.got))}</code></div>`;
 
-        // Розумні підказки (якщо є проблеми з пробілами чи апострофами)
         const hints = r.meta?.hints || [];
         for (const h of hints) {
            html += `<div style="margin-top:6px; color: #fbbf24; font-weight:700;">💡 ${escapeHtml(h)}</div>`;
@@ -1194,29 +886,25 @@ function buildTerminalReport(runResult) {
       html += `</div>`;
     }
 
-    // Блок для візуалізації невидимих пробілів (якщо потрібно)
     const firstStdFail = results.find(r => !r.pass && r.meta && r.meta.gotRaw !== undefined);
     if (firstStdFail) {
       html += `<hr style="border:none; border-top:1px dashed rgba(255,255,255,0.2); margin: 12px 0;">`;
-      html += `<div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">🔎 Аналіз невидимих символів (пробіли, переноси):</div>`;
+      html += `<div style="font-size: 12px; color: var(--text-dim); margin-bottom: 6px;">🔎 Аналіз невидимих символів:</div>`;
       html += `<div style="font-size: 13px; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 6px; font-family: var(--mono);">`;
       html += `<div style="color: var(--success); margin-bottom:4px;">[Твоя мета]➔ ${escapeHtml(visualizeWhitespace(firstStdFail.meta.wantRaw))}</div>`;
       html += `<div style="color: #fca5a5;">[Твій код] ➔ ${escapeHtml(visualizeWhitespace(firstStdFail.meta.gotRaw))}</div>`;
       html += `</div>`;
     }
 
-    html += `</div></div>`; // Закриваємо тест-блок
+    html += `</div></div>`;
     return html;
   }
 
   // ===========================
-  // Settings modal
+  // Settings / Levels modals
   // ===========================
   function openSettings() {
-    if (!$("soundToggle")) return;
-    $("soundToggle").checked = !!state.settings.sound;
-
-   
+    if ($("soundToggle")) $("soundToggle").checked = !!state.settings.sound;
     settingsOverlay && settingsOverlay.classList.add("active");
   }
 
@@ -1225,22 +913,47 @@ function buildTerminalReport(runResult) {
   }
 
   function openLevelPicker(courseId, onDone) {
-    // Попап більше не показуємо — у тебе вже є вбудовані картки на цій сторінці
-    toast("🎚️ Рівень обирається у блоці «Обери складність курсу».");
-  
-    // якщо ми вже на сторінці курсу — просто скролимо до блоку
-    setTimeout(() => {
-      const el = document.querySelector(".level-selector-inline");
-      el?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
-  
-    // щоб не ламати стару логіку викликів
-    if (typeof onDone === "function") onDone();
+    const existing = document.getElementById("levelOverlay");
+    if (existing) existing.remove();
+
+    const course = DB.find(c => c.id === courseId);
+    const ov = document.createElement("div");
+    ov.id = "levelOverlay";
+    ov.className = "overlay active";
+
+    ov.innerHTML = `
+      <div class="modal settings-modal">
+        <div class="modal-head">
+          <h3>🎚️ Рівень курсу: ${escapeHtml(course?.title || courseId)}</h3>
+          <button class="btn-close" id="lvlClose">✕</button>
+        </div>
+        <div class="set-block">
+          <p class="mutedish">Обери один рівень. Він визначає, які задачі відкриються.</p>
+          <div class="level-grid">
+            ${LEVELS.map(l => `
+              <button class="level-card" data-level="${l.id}">
+                <div class="level-title">${l.title}</div>
+                <div class="mutedish tiny">${escapeHtml(l.desc)}</div>
+              </button>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(ov);
+    ov.querySelector("#lvlClose").onclick = () => ov.remove();
+    ov.querySelectorAll("[data-level]").forEach(btn => {
+      btn.onclick = () => {
+        const lvl = btn.getAttribute("data-level");
+        setCourseLevel(courseId, lvl);
+        toast(`Рівень: ${LEVELS.find(x => x.id === lvl)?.title || lvl}`);
+        ov.remove();
+        if (typeof onDone === "function") onDone();
+      };
+    });
   }
-  
-  // ===========================
-  // Typing effect (home)
-  // ===========================
+
   const typingWords = [
     'print("Hello, Python Academy!")',
     'for i in range(1, 4): print(i)',
@@ -1252,15 +965,10 @@ function buildTerminalReport(runResult) {
     const el = $("typedText");
     if (!el) return;
     const w = typingWords[tIndex % typingWords.length];
-
     if (tDir === 1) {
       tSub = w.slice(0, tSub.length + 1);
       el.textContent = tSub;
-      if (tSub.length === w.length) {
-        tDir = -1;
-        setTimeout(typingTick, 900);
-        return;
-      }
+      if (tSub.length === w.length) { tDir = -1; setTimeout(typingTick, 900); return; }
       setTimeout(typingTick, 34);
     } else {
       tSub = w.slice(0, tSub.length - 1);
@@ -1270,10 +978,8 @@ function buildTerminalReport(runResult) {
     }
   }
 
+  let myCodeMirror = null;
 
-
-
-let myCodeMirror = null;
   // ===========================
   // Lesson render
   // ===========================
@@ -1281,12 +987,11 @@ let myCodeMirror = null;
     const course = DB.find(c => c.id === courseId);
     const mod = course?.modules.find(m => m.id === moduleId);
     const idx = Number(taskIdx);
-
     const refs = visibleTaskRefs(courseId, moduleId);
     const ref = refs[idx];
 
     if (!course || !mod || !ref) {
-      toast("Урок не знайдено (можливо, рівень не вибрано або в цьому рівні немає задач)");
+      toast("Урок не знайдено (можливо, рівень не вибрано)");
       goto(`/course/${courseId}`);
       return;
     }
@@ -1294,83 +999,70 @@ let myCodeMirror = null;
     const task = ref.t;
     const origIdx = ref.origIdx;
 
-    currentCourse = course;
-    currentModule = mod;
-    currentTaskIndex = idx;
-
+    currentCourse = course; currentModule = mod; currentTaskIndex = idx;
     setActiveView(viewLesson);
-    // Запускаємо таймер для бонусу "Швидкість"
     window.currentTaskStartTime = Date.now();
 
-    $("breadcrumbs").innerHTML =
-      `<span class="crumb" data-crumb-home style="cursor:pointer">Головна</span> / ` +
-      `<span class="crumb" data-crumb-course style="cursor:pointer">${escapeHtml(course.title)}</span> / ` +
-      `${escapeHtml(mod.title)}`;
-
-    $("lessonTitle").innerText = task.title;
-    $("lessonContent").innerHTML = task.theory || "";
- // === ПІДСВІТКА КОДУ В ТЕОРІЇ ===
-    const currentTheme = state.settings.theme === "light" ? "default" : "dracula";
+    if ($("breadcrumbs")) $("breadcrumbs").innerHTML = `<span class="crumb" data-crumb-home style="cursor:pointer">Головна</span> / <span class="crumb" data-crumb-course style="cursor:pointer">${escapeHtml(course.title)}</span> / ${escapeHtml(mod.title)}`;
+    if ($("lessonTitle")) $("lessonTitle").innerText = task.title;
+    if ($("lessonContent")) $("lessonContent").innerHTML = task.theory || "";
+    if ($("lessonTask")) $("lessonTask").innerText = task.desc || "";
+    if ($("lessonExpected")) $("lessonExpected").textContent = task.expected || "(немає)";
     
+    // ПІДСВІТКА КОДУ В ТЕОРІЇ
+    const currentTheme = state.settings.theme === "light" ? "default" : "dracula";
     $("lessonContent").querySelectorAll('.code-box').forEach(box => {
-      // 1. Правильно дістаємо текст (зберігаємо твої <br> як нові рядки)
       let codeText = box.innerHTML.replace(/<br\s*\/?>/gi, '\n');
       let temp = document.createElement("div");
       temp.innerHTML = codeText;
       codeText = (temp.textContent || temp.innerText || "").trim();
-
-      // 2. Очищаємо блок і вішаємо клас теми
       box.innerHTML = "";
-      box.classList.add(`cm-s-${currentTheme}`); // Додаємо тему для синтаксису
-
-      // 3. Фарбуємо код
+      let innerCode = document.createElement("div");
+      innerCode.className = `cm-s-${currentTheme}`;
+      innerCode.style.background = "transparent"; 
       if (window.CodeMirror && typeof CodeMirror.runMode === "function") {
-        CodeMirror.runMode(codeText, "python", box);
+        CodeMirror.runMode(codeText, "python", innerCode);
       } else {
-        box.textContent = codeText;
+        innerCode.textContent = codeText;
       }
+      box.appendChild(innerCode);
     });
-    $("lessonTask").innerText = task.desc || "";
-    $("lessonExpected").textContent = task.expected || "(немає)";
 
     const kind = task.kind || "practice";
-    $("badgeKind").textContent = kindLabel(kind);
+    if ($("badgeKind")) $("badgeKind").textContent = kindLabel(kind);
 
     const id = uid(course.id, mod.id, origIdx);
     const tries = getAttempts(id);
-    $("badgeAttempts").textContent = `Спроби: ${Math.min(tries, 10)}/10`;
+    if ($("badgeAttempts")) $("badgeAttempts").textContent = `Спроби: ${Math.min(tries, 10)}/10`;
+    if ($("badgeNoXP")) $("badgeNoXP").style.display = isSpoiled(id) ? "inline-flex" : "none";
 
-    $("badgeNoXP").style.display = isSpoiled(id) ? "inline-flex" : "none";
-
-    // Запуск сесії задачі (таймер)
-    state.user.taskSession = {
-      id,
-      startedAt: Date.now()
-    };
+    state.user.taskSession = { id, startedAt: Date.now() };
     save();
-    // hint
-    $("hintBox").innerText = task.hint || "";
-    $("hintBox").style.display = "none";
-    $("btnHint").style.opacity = task.hint ? "1" : "0.5";
-    $("btnHint").style.pointerEvents = task.hint ? "auto" : "none";
 
-    // solution availability + button behavior
+    if ($("hintBox")) {
+      $("hintBox").innerText = task.hint || "";
+      $("hintBox").style.display = "none";
+    }
+    if ($("btnHint")) {
+      $("btnHint").style.opacity = task.hint ? "1" : "0.5";
+      $("btnHint").style.pointerEvents = task.hint ? "auto" : "none";
+    }
+
     const solBox = $("solutionBox");
     const solPre = $("solutionPre");
     const btnShowSol = $("btnShowSolution");
-
     const available = tries >= 10;
     const spoiled = isSpoiled(id);
 
-    if (spoiled) {
+    if (spoiled && solBox) {
       solBox.style.display = "block";
       solPre.textContent = task.solution || task.hint || "# (немає рішення)";
       if (btnShowSol) btnShowSol.style.display = "none";
-    } else if (available) {
+    } else if (available && solBox) {
       solBox.style.display = "block";
       solPre.textContent = "Рішення доступне після 10 спроб. Натисни кнопку нижче, щоб відкрити (буде без XP).";
       if (btnShowSol) btnShowSol.style.display = "inline-flex";
-    } else {
+    } else if (solBox) {
       solBox.style.display = "none";
       if (btnShowSol) btnShowSol.style.display = "none";
     }
@@ -1378,62 +1070,49 @@ let myCodeMirror = null;
     if (btnShowSol) {
       btnShowSol.onclick = () => {
         setSpoiled(id);
-        $("badgeNoXP").style.display = "inline-flex";
-        solPre.textContent = task.solution || task.hint || "# (немає рішення)";
+        if ($("badgeNoXP")) $("badgeNoXP").style.display = "inline-flex";
+        if (solPre) solPre.textContent = task.solution || task.hint || "# (немає рішення)";
         btnShowSol.style.display = "none";
         toast("🧩 Рішення відкрито — ця задача буде без XP");
       };
     }
 
-    // exam warning (no locks)
     const warn = $("examWarnBox");
-    const isExam = (kind === "quiz" || kind === "final");
-    const moduleDone = isModuleCompleted(courseId, moduleId);
-    if (isExam && !moduleDone) {
-      const mp = moduleProgress(courseId, moduleId);
-      warn.style.display = "block";
-      warn.innerHTML = `⚠️ <b>${escapeHtml(kindLabel(kind))}</b>: у модулі ще не виконані всі завдання (${mp.done}/${mp.total}). 
-      Ти можеш проходити зараз, але рекомендовано спочатку завершити модуль.`;
-    } else {
-      warn.style.display = "none";
+    if (warn) {
+      const isExam = (kind === "quiz" || kind === "final");
+      const moduleDone = isModuleCompleted(courseId, moduleId);
+      if (isExam && !moduleDone) {
+        const mp = moduleProgress(courseId, moduleId);
+        warn.style.display = "block";
+        warn.innerHTML = `⚠️ <b>${escapeHtml(kindLabel(kind))}</b>: у модулі ще не виконані всі завдання (${mp.done}/${mp.total}). 
+        Ти можеш проходити зараз, але рекомендовано спочатку завершити модуль.`;
+      } else {
+        warn.style.display = "none";
+      }
     }
 
-    // editor / terminal init
-    // ===========================
-    // EDITOR INIT (CodeMirror)
-    // ===========================
     const terminal = $("terminal");
     const status = $("termStatus");
     if (status) status.textContent = "Ready";
     if (terminal) terminal.textContent = ">>> Ready...";
 
-    // Якщо редактор ще не створено - створюємо
     if (!myCodeMirror) {
       myCodeMirror = CodeMirror.fromTextArea($("codeEditor"), {
-        mode: "python",
-        theme: state.settings.theme === "light" ? "default" : "dracula",
-        lineNumbers: true,
-        indentUnit: 4,
-        autoCloseBrackets: true,
-        extraKeys: {
-          "Ctrl-Enter": () => $("btnRun").click(),
-          "Cmd-Enter": () => $("btnRun").click()
-        }
+        mode: "python", theme: state.settings.theme === "light" ? "default" : "dracula",
+        lineNumbers: true, indentUnit: 4, autoCloseBrackets: true,
+        extraKeys: { "Ctrl-Enter": () => $("btnRun").click(), "Cmd-Enter": () => $("btnRun").click() }
       });
     }
 
-// Завантажуємо фінальне рішення (якщо є), або чернетку
-// 1. Формуємо код, який треба показати
+    // НОВИЙ НАДІЙНИЙ ОБРОБНИК ЗБЕРЕЖЕННЯ КОДУ
     const pastSolution = state.user?.solutions?.[id];
     const draft = getDraft(id);
     const codeToShow = pastSolution !== undefined ? pastSolution : (draft || "");
 
-    // 2. Якщо вже був обробник автозбереження — правильно його видаляємо!
     if (myCodeMirror._currentChangeHandler) {
       myCodeMirror.off("change", myCodeMirror._currentChangeHandler);
     }
 
-    // 3. Вставляємо код завдання у редактор
     myCodeMirror.setValue(codeToShow);
 
     const savedBadge = $("badgeSaved");
@@ -1442,11 +1121,8 @@ let myCodeMirror = null;
       savedBadge.style.opacity = draft ? "1" : ".75";
     }
 
-    // 4. Створюємо іменований обробник (щоб потім його можна було видалити)
     myCodeMirror._currentChangeHandler = (cm, changeObj) => {
-      // Ігноруємо штучну зміну (коли код просто підвантажується через setValue)
       if (changeObj.origin === "setValue") return; 
-
       if (savedBadge) { savedBadge.textContent = "Saving..."; savedBadge.style.opacity = "1"; }
       clearTimeout(myCodeMirror._autosaveTimer);
       myCodeMirror._autosaveTimer = setTimeout(() => {
@@ -1455,192 +1131,174 @@ let myCodeMirror = null;
       }, 350);
     };
 
-    // 5. Вішаємо новий правильний обробник
     myCodeMirror.on("change", myCodeMirror._currentChangeHandler);
 
-    // buttons
-    $("btnClear").onclick = () => {
-      if (!confirm("Очистити редактор?")) return;
-      myCodeMirror.setValue(""); // Замість editor.value = ""
-      setDraft(id, "");
-      if (savedBadge) savedBadge.textContent = "Not saved";
-      if (terminal) terminal.textContent = ">>> Cleared.";
-      toast("🧼 Очищено");
-    };
+    if ($("btnClear")) {
+      $("btnClear").onclick = () => {
+        if (!confirm("Очистити редактор?")) return;
+        myCodeMirror.setValue(""); 
+        setDraft(id, "");
+        if (savedBadge) savedBadge.textContent = "Not saved";
+        if (terminal) terminal.textContent = ">>> Cleared.";
+        toast("🧼 Очищено");
+      };
+    }
 
-    $("btnHint").onclick = () => {
-      const hb = $("hintBox");
-      hb.style.display = hb.style.display === "block" ? "none" : "block";
-    };
+    if ($("btnHint")) {
+      $("btnHint").onclick = () => {
+        const hb = $("hintBox");
+        if (hb) hb.style.display = hb.style.display === "block" ? "none" : "block";
+      };
+    }
 
-    $("btnPrev").onclick = () => {
-      if (idx > 0) goto(`/lesson/${course.id}/${mod.id}/${idx - 1}`);
-      else goto(`/course/${course.id}`);
-    };
+    if ($("btnPrev")) {
+      $("btnPrev").onclick = () => {
+        if (idx > 0) goto(`/lesson/${course.id}/${mod.id}/${idx - 1}`);
+        else goto(`/course/${course.id}`);
+      };
+    }
 
-    $("btnNext").onclick = () => {
-      if (!$("btnNext").classList.contains("unlocked")) return;
-      if (idx < refs.length - 1) goto(`/lesson/${course.id}/${mod.id}/${idx + 1}`);
-      else goto(`/course/${course.id}`);
-    };
+    if ($("btnNext")) {
+      $("btnNext").onclick = () => {
+        if (!$("btnNext").classList.contains("unlocked")) return;
+        if (idx < refs.length - 1) goto(`/lesson/${course.id}/${mod.id}/${idx + 1}`);
+        else goto(`/course/${course.id}`);
+      };
+      $("btnNext").classList.remove("unlocked");
+      if (completionState(id)) $("btnNext").classList.add("unlocked");
+    }
 
-    // unlock next if already completed
-    $("btnNext").classList.remove("unlocked");
-    if (completionState(id)) $("btnNext").classList.add("unlocked");
+    // ===========================
+    // RUN SCRIPT
+    // ===========================
+    if ($("btnRun")) {
+      $("btnRun").onclick = async () => {
+        const code = myCodeMirror.getValue();
+        if (terminal) terminal.textContent = ">>> Виконання коду...";
+        
+        const run = await runTaskTestsSmart(task, code);
+        // Запускаємо Смарт-Термінал (вставляємо HTML)
+        if (terminal) terminal.innerHTML = buildTerminalReport(run);
 
+        // ЯКЩО ПОМИЛКА АБО НЕ ВСІ ТЕСТИ ПРОЙДЕНІ
+        if (!run.allPass) {
+          const alreadyDone = !!completionState(id);
+          if (!alreadyDone) {
+            const n = incAttempts(id);
+            if ($("badgeAttempts")) $("badgeAttempts").textContent = `Спроби: ${Math.min(n, 10)}/10`;
 
-// RUN
-    $("btnRun").onclick = async () => {
-      const code = myCodeMirror.getValue();
-      
-      // Показуємо користувачу, що код виконується
-      if (terminal) terminal.textContent = ">>> Виконання коду...";
-      
-      // Чекаємо результатів від Skulpt
-      const run = await runTaskTestsSmart(task, code);
-
-      if (terminal) terminal.innerHTML = buildTerminalReport(run);
-
-      // ==============================
-      // FAIL (Помилка виконання або не пройдені тести)
-      // ==============================
-      if (!run.allPass) {
-        // ... (ДАЛІ ВЕСЬ ТВІЙ КОД ЗАЛИШАЄТЬСЯ БЕЗ ЗМІН)
-        const alreadyDone = !!completionState(id);
-        if (!alreadyDone) {
-          const n = incAttempts(id);
-          $("badgeAttempts").textContent = `Спроби: ${Math.min(n, 10)}/10`;
-
-          if (n >= 10 && !isSpoiled(id)) {
-            // solution becomes available, but NOT spoiled until click
-            if (solBox) {
-              solBox.style.display = "block";
-              solPre.textContent = "Рішення доступне після 10 спроб. Натисни кнопку, щоб відкрити (буде без XP).";
-              if (btnShowSol) btnShowSol.style.display = "inline-flex";
+            if (n >= 10 && !isSpoiled(id)) {
+              if (solBox) {
+                solBox.style.display = "block";
+                if (solPre) solPre.textContent = "Рішення доступне після 10 спроб. Натисни кнопку, щоб відкрити (буде без XP).";
+                if (btnShowSol) btnShowSol.style.display = "inline-flex";
+              }
+              toast("🧩 Рішення стало доступним після 10 спроб");
+            } else {
+              toast("❌ Не всі тести пройдені");
             }
-            toast("🧩 Рішення стало доступним після 10 спроб");
           } else {
             toast("❌ Не всі тести пройдені");
           }
-        } else {
-          toast("❌ Не всі тести пройдені");
+          return; // ПЕРЕРИВАЄМО ФУНКЦІЮ!
         }
-        
-        // Тут ми ПЕРЕРИВАЄМО виконання функції, якщо є помилка, щоб не йти в SUCCESS
-        return; 
-      }
 
-     // ==============================
-      // SUCCESS (Всі тести пройдені)
-      // ==============================
-      const already = !!completionState(id);
-      
-      if (!already) {
-        const spoiledNow = isSpoiled(id);
+        // ==============================
+        // SUCCESS (Всі тести пройдені)
+        // ==============================
+        const already = !!completionState(id);
         
-        if (!spoiledNow) {
-          // --- ВАРІАНТ 1: Пройдено чесно, вперше (Даємо XP і Бонуси) ---
+        if (!already) {
+          const spoiledNow = isSpoiled(id);
           
-          setCompleted(id, "xp");
+          if (!spoiledNow) {
+            // ВАРІАНТ 1: Пройдено чесно, вперше
+            setCompleted(id, "xp");
 
-          // Зберігаємо переможний код назавжди!
-          state.user.solutions = state.user.solutions || {};
-          state.user.solutions[id] = myCodeMirror.getValue();
+            // Зберігаємо переможний код назавжди!
+            state.user.solutions = state.user.solutions || {};
+            state.user.solutions[id] = myCodeMirror.getValue();
 
-          // 1) рахуємо бонуси
-          const baseXp = task.xp || 0;
-          const attemptsBefore = getAttempts(id);
-          const bonuses = calculateBonuses({
-            baseXp,
-            attemptsBefore,
-            taskId: id,
-            courseId: course.id
-          });
+            const baseXp = task.xp || 0;
+            const attemptsBefore = getAttempts(id);
+            const bonuses = calculateBonuses({ baseXp, attemptsBefore, taskId: id, courseId: course.id });
+            const totalXP = baseXp + bonuses.sniper + bonuses.speed + bonuses.streakBonus;
 
-          const totalXP = baseXp + bonuses.sniper + bonuses.speed + bonuses.streakBonus;
+            state.user.xp += totalXP;
 
-          // 2) нараховуємо XP
-          state.user.xp += totalXP;
+            updateStreak(state.user);
+            save();
+            updateUserUI();
 
-          updateStreak(state.user);
-          save();
-          updateUserUI();
+            playSuccessSound(!!state.settings.sound);
+            fireConfetti();
 
-          playSuccessSound(!!state.settings.sound);
-          fireConfetti();
+            if ($("successTaskName")) $("successTaskName").textContent = task.title;
+            if ($("xpBase")) $("xpBase").textContent   = `+${baseXp}`;
+            if ($("xpSniper")) $("xpSniper").textContent = bonuses.sniper ? `+${bonuses.sniper}` : "0";
+            if ($("xpSpeed")) $("xpSpeed").textContent  = bonuses.speed ? `+${bonuses.speed}` : "0";
+            if ($("xpStreak")) $("xpStreak").textContent = bonuses.streakBonus ? `+${bonuses.streakBonus}` : "0";
+            if ($("xpTotal")) $("xpTotal").textContent  = `+${totalXP} XP`;
 
-          // 3) модалка
-          $("successTaskName").textContent = task.title;
-          $("xpBase").textContent   = `+${baseXp}`;
-          $("xpSniper").textContent = bonuses.sniper ? `+${bonuses.sniper}` : "0";
-          $("xpSpeed").textContent  = bonuses.speed ? `+${bonuses.speed}` : "0";
-          $("xpStreak").textContent = bonuses.streakBonus ? `+${bonuses.streakBonus}` : "0";
-          $("xpTotal").textContent  = `+${totalXP} XP`;
+            const successOverlay = $("successOverlay");
+            if (successOverlay) {
+              successOverlay.classList.add("active");
 
-          const successOverlay = $("successOverlay");
-          if (successOverlay) {
-            successOverlay.classList.add("active");
+              if ($("btnSuccessNext")) {
+                $("btnSuccessNext").onclick = () => {
+                  successOverlay.classList.remove("active");
+                  if (idx < refs.length - 1) goto(`/lesson/${course.id}/${mod.id}/${idx + 1}`);
+                  else goto(`/course/${course.id}`);
+                };
+              }
 
-            // Кнопка "Далі"
-            $("btnSuccessNext").onclick = () => {
-              successOverlay.classList.remove("active");
-              if (idx < refs.length - 1) goto(`/lesson/${course.id}/${mod.id}/${idx + 1}`);
-              else goto(`/course/${course.id}`);
-            };
-
-            // Кнопка "Переглянути мій код"
-            const btnStay = $("btnSuccessStay");
-            if (btnStay) {
-              btnStay.onclick = () => {
-                successOverlay.classList.remove("active");
-                $("btnNext").classList.add("unlocked"); // Розблоковуємо кнопку далі внизу екрана
-              };
+              const btnStay = $("btnSuccessStay");
+              if (btnStay) {
+                btnStay.onclick = () => {
+                  successOverlay.classList.remove("active");
+                  if ($("btnNext")) $("btnNext").classList.add("unlocked"); 
+                };
+              }
+            } else {
+              toast(`✅ SUCCESS! +${totalXP} XP`);
+              if ($("btnNext")) $("btnNext").classList.add("unlocked");
             }
-          } else {
-            toast(`✅ SUCCESS! +${totalXP} XP`);
-            $("btnNext").classList.add("unlocked");
-          }
 
-        } else {
-          // --- ВАРІАНТ 2: Пройдено вперше, але відкрив рішення (Без XP) ---
-          setCompleted(id, "no_xp");
+          } else {
+            // ВАРІАНТ 2: Відкрив підказку
+            setCompleted(id, "no_xp");
+            state.user.solutions = state.user.solutions || {};
+            state.user.solutions[id] = myCodeMirror.getValue();
+            
+            updateStreak(state.user);
+            save();
+            updateUserUI();
+            toast("✅ Зараховано, але без XP (було відкрито рішення)");
+            if ($("btnNext")) $("btnNext").classList.add("unlocked");
+          }
           
-          // Теж зберігаємо його варіант коду
+        } else {
+          // ВАРІАНТ 3: Вже пройдено
           state.user.solutions = state.user.solutions || {};
           state.user.solutions[id] = myCodeMirror.getValue();
-          
-          updateStreak(state.user);
           save();
-          updateUserUI();
-          toast("✅ Зараховано, але без XP (було відкрито рішення)");
-          $("btnNext").classList.add("unlocked");
+          
+          toast("✅ Уже зараховано");
+          if ($("btnNext")) $("btnNext").classList.add("unlocked");
         }
-        
-      } else {
-        // --- ВАРІАНТ 3: Задача вже була пройдена раніше ---
-        
-        // Дозволяємо перезаписати збережене рішення на нове (раптом учень написав краще)
-        state.user.solutions = state.user.solutions || {};
-        state.user.solutions[id] = myCodeMirror.getValue();
-        save();
-        
-        toast("✅ Уже зараховано");
-        $("btnNext").classList.add("unlocked");
-      }
 
-      // Перевірка, чи це була остання задача в модулі
-      const mp = moduleProgress(course.id, mod.id);
-      if (mp.done === mp.total) {
-        setTimeout(() => fireConfetti(), 160);
-        toast("🎉 Модуль завершено!");
-      }
+        const mp = moduleProgress(course.id, mod.id);
+        if (mp.done === mp.total) {
+          setTimeout(() => fireConfetti(), 160);
+          toast("🎉 Модуль завершено!");
+        }
 
-      renderSidebarModuleTasks(course.id, mod.id, idx);
-    };
+        renderSidebarModuleTasks(course.id, mod.id, idx);
+      };
+    }
 
-    // breadcrumbs
-    document.querySelectorAll("[data-crumb-home]").forEach(el => el.onclick = () => goto("/home"));    document.querySelectorAll("[data-crumb-course]").forEach(el => el.onclick = () => goto(`/course/${course.id}`));
-
+    document.querySelectorAll("[data-crumb-home]").forEach(el => el.onclick = () => goto("/home"));
+    document.querySelectorAll("[data-crumb-course]").forEach(el => el.onclick = () => goto(`/course/${course.id}`));
     renderSidebarModuleTasks(course.id, mod.id, idx);
   }
 
@@ -1672,9 +1330,9 @@ let myCodeMirror = null;
     goto("/home");
   }
 
-   // Закриваємо мобільне меню при будь-якому переході
-    document.querySelector(".sidebar")?.classList.remove("open");
-    document.querySelector(".sidebar-overlay")?.classList.remove("active");
+  document.querySelector(".sidebar")?.classList.remove("open");
+  document.querySelector(".sidebar-overlay")?.classList.remove("active");
+
   // ===========================
   // Events bind
   // ===========================
@@ -1693,14 +1351,8 @@ let myCodeMirror = null;
       err.style.display = "none";
 
       state.user = {
-        name,
-        xp: 0,
-        streak: 1,
-        lastDay: null,
-        completed: {},
-        attempts: {},
-        spoiled: {},
-        drafts: {},
+        name, xp: 0, streak: 1, lastDay: null,
+        completed: {}, attempts: {}, spoiled: {}, drafts: {}, solutions: {}
       };
       updateStreak(state.user);
       save();
@@ -1711,14 +1363,9 @@ let myCodeMirror = null;
       renderByRoute();
     });
 
-
-
     on($("btnOpenSettings"), "click", openSettings);
     on($("btnCloseSettings"), "click", closeSettings);
-
-    on(settingsOverlay, "click", (e) => {
-      if (e.target === settingsOverlay) closeSettings();
-    });
+    on(settingsOverlay, "click", (e) => { if (e.target === settingsOverlay) closeSettings(); });
 
     on($("soundToggle"), "change", (e) => {
       state.settings.sound = !!e.target.checked;
@@ -1740,28 +1387,23 @@ let myCodeMirror = null;
       renderByRoute();
     });
 
-on($("btnLogout"), "click", async () => {
-  if (!confirm("Вийти з акаунту?")) return;
+    on($("btnLogout"), "click", async () => {
+      if (!confirm("Вийти з акаунту?")) return;
+      try { if (supa) await supa.auth.signOut(); } catch {}
+      state.user = null;
+      save();
+      closeSettings();
+      showAuth();
+      toast("👋 Вийшов");
+      goto("/home");
+      renderByRoute();
+    });
 
-  try { if (supa) await supa.auth.signOut(); } catch {}
+    on($("btnGoogle"), "click", async () => {
+      try { await signInWithGoogle(); } 
+      catch { toast("❌ Не вдалося увійти через Google"); }
+    });
 
-  state.user = null;
-  save();
-  closeSettings();
-  showAuth();
-  toast("👋 Вийшов");
-  goto("/home");
-  renderByRoute();
-});
-
-on($("btnGoogle"), "click", async () => {
-  try {
-    await signInWithGoogle();
-  } catch {
-    toast("❌ Не вдалося увійти через Google");
-  }
-});
-   // Створення затемнення для мобільного меню
     const sbOverlay = document.createElement("div");
     sbOverlay.className = "sidebar-overlay";
     document.body.appendChild(sbOverlay);
@@ -1769,16 +1411,15 @@ on($("btnGoogle"), "click", async () => {
     const btnMobileMenu = $("btnMobileMenu");
     const sidebar = document.querySelector(".sidebar");
 
-    if (btnMobileMenu) {
+    if (btnMobileMenu && sidebar) {
       btnMobileMenu.onclick = () => {
         sidebar.classList.add("open");
         sbOverlay.classList.add("active");
       };
     }
 
-    // Закриття по кліку на темний фон
     sbOverlay.onclick = () => {
-      sidebar.classList.remove("open");
+      if (sidebar) sidebar.classList.remove("open");
       sbOverlay.classList.remove("active");
     };
     window.addEventListener("hashchange", renderByRoute);
@@ -1787,51 +1428,34 @@ on($("btnGoogle"), "click", async () => {
   // ===========================
   // Start
   // ===========================
-bindEvents();
-typingTick();
-applyTheme(state.settings.theme || "dark");
+  bindEvents();
+  typingTick();
+  applyTheme(state.settings.theme || "dark");
 
-(async () => {
-  // якщо користувач уже увійшов через Google — підтягуємо прогрес
-  if (supa) {
-    const user = await getSessionUser();
-    if (user) {
-      try {
-        const cloud = await cloudLoadState(user.id);
-        if (cloud) {
-          state = cloud;
-          save();
-        } else {
-          // перший вхід: якщо локально вже є user — заливаємо, якщо ні — створимо
-          if (!state.user) {
-            const name =
-              user.user_metadata?.full_name ||
-              user.email?.split("@")?.[0] ||
-              "User";
-
-            state.user = {
-              name,
-              xp: 0,
-              streak: 1,
-              lastDay: null,
-              completed: {},
-              attempts: {},
-              spoiled: {},
-              drafts: {},
-            };
+  (async () => {
+    if (supa) {
+      const user = await getSessionUser();
+      if (user) {
+        try {
+          const cloud = await cloudLoadState(user.id);
+          if (cloud) {
+            state = cloud;
+            save();
+          } else {
+            if (!state.user) {
+              const name = user.user_metadata?.full_name || user.email?.split("@")?.[0] || "User";
+              state.user = {
+                name, xp: 0, streak: 1, lastDay: null,
+                completed: {}, attempts: {}, spoiled: {}, drafts: {}, solutions: {}
+              };
+            }
+            save();
+            await cloudSaveState(user.id, state);
           }
-          save();
-          await cloudSaveState(user.id, state);
-        }
-      } catch {
-        // якщо щось з хмарою не так — просто працюємо локально
+        } catch {}
       }
     }
-  }
+    renderByRoute();
+  })();
 
-  renderByRoute();
 })();
-})();
-
-
-
