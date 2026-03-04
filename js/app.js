@@ -429,14 +429,16 @@ function updateUserUI() {
   }
 
   function moduleProgress(courseId, moduleId) {
-    const tasks = getModuleTasks(courseId, moduleId);
-    if (!tasks.length) return { done: 0, total: 0 };
-  
+    // Тепер беремо тільки завдання поточного рівня!
+    const refs = visibleTaskRefs(courseId, moduleId);
+    if (!refs.length) return { done: 0, total: 0 };
+
     let done = 0;
-    tasks.forEach((t, idx) => {
-      if (isDone(courseId, moduleId, idx)) done++;
+    refs.forEach(r => {
+      // Звертаємося по оригінальному індексу для збереження
+      if (isDone(courseId, moduleId, r.origIdx)) done++;
     });
-    return { done, total: tasks.length };
+    return { done, total: refs.length };
   }
 
   function isModuleCompleted(courseId, moduleId) {
@@ -582,10 +584,14 @@ function updateUserUI() {
     const mod = course?.modules.find(m => m.id === moduleId);
     if (!course || !mod) return renderSidebarHome();
   
-    const tasks = getModuleTasks(courseId, moduleId);
+    // ГОЛОВНЕ ВИПРАВЛЕННЯ: Беремо відфільтровані завдання!
+    const refs = visibleTaskRefs(courseId, moduleId);
   
-    const tasksHtml = tasks.map((t, idx) => {
-      const id = uid(courseId, moduleId, idx);
+    const tasksHtml = refs.map((ref, idx) => {
+      const t = ref.t;
+      const origIdx = ref.origIdx; // Індекс для бази даних
+      const id = uid(courseId, moduleId, origIdx);
+      
       const cs = completionState(id);
       const done = !!cs;
       const noxp = cs === "no_xp";
@@ -608,27 +614,21 @@ function updateUserUI() {
       `;
     }).join("");
   
-    // ... решту твого коду лишаємо як було
-    // важливо: mp тепер коректний, бо moduleProgress вже через getModuleTasks
     const mp = moduleProgress(courseId, moduleId);
     const pct = mp.total ? Math.round((mp.done / mp.total) * 100) : 0;
   
     sb.innerHTML = `
       <button class="menu-btn" data-nav="modules"><i class="ri-arrow-left-line"></i> До модулів</button>
-  
       <div style="margin:12px 0 8px; padding:0 10px; color:var(--text-dim); font-size:12px; font-weight:900;">
         ${escapeHtml(course.title.toUpperCase())} • ${escapeHtml(mod.title.toUpperCase())}
       </div>
-  
       <div style="padding:0 10px 12px;">
         <div class="progress-line"><div class="progress-fill" style="width:${pct}%"></div></div>
         <div class="tiny mutedish" style="text-align:right;margin-top:6px;">${mp.done}/${mp.total} • ${pct}%</div>
       </div>
-  
       <div class="task-list-container open" style="display:block;">
-        ${tasksHtml || `<div style="padding:10px;color:var(--text-dim)">Немає завдань у цьому модулі (перевір taskRefs/tasks).</div>`}
+        ${tasksHtml || `<div style="padding:10px;color:var(--text-dim)">Немає завдань для цього рівня.</div>`}
       </div>
-  
       <div style="margin-top:10px; padding:0 10px;">
         <button class="menu-btn" data-nav="leaderboard"><i class="ri-trophy-line"></i> Рейтинг</button>
         <button class="menu-btn" data-nav="settings"><i class="ri-settings-3-line"></i> Налаштування</button>
@@ -637,8 +637,8 @@ function updateUserUI() {
   
     sb.querySelectorAll("[data-open-task]").forEach(el => {
       el.addEventListener("click", () => {
-        const [cid, mid, idx] = el.getAttribute("data-open-task").split("|");
-        goto(`/lesson/${cid}/${mid}/${idx}`);
+        const [cid, mid, i] = el.getAttribute("data-open-task").split("|");
+        goto(`/lesson/${cid}/${mid}/${i}`);
       });
     });
   
@@ -1018,8 +1018,12 @@ async function renderLeaderboard() {
       .replace(/\n/g, "↵\n");
   }
 
+  function compactWS(s) {
+    return String(s ?? "").replace(/\s+/g, "");
+  }
+
   async function runTaskTestsSmart(task, code) {
-  const exec = await runPythonSkulpt(code);
+    const exec = await runPythonSkulpt(code);
     const results = [];
     const tests = task.tests || [];
     const rawStdout = String(exec.stdout ?? "");
@@ -1029,18 +1033,35 @@ async function renderLeaderboard() {
       const type = t.type || "stdoutEquals";
       const name = t.name || type;
 
-      // codeRegex count (global)
+      // ДОЗВІЛ ЗАЗИРАТИ В ЛАПКИ (для перевірки \n, \t тощо)
+      const targetCode = t.checkRaw ? String(code ?? "") : safeCode;
+      const targetCodeCompact = compactWS(targetCode);
+
       if (type === "codeRegex" && t.flags === "g") {
-        const cnt = countRegexMatches(safeCode, t.pattern);
-        const need = t.min ?? 2;
-        const pass = cnt >= need;
-        results.push({ name, pass, reason: pass ? "OK" : `Потрібно мінімум ${need} співпадінь`, want: `${need}+ matches`, got: String(cnt) });
+        const cnt = countRegexMatches(targetCode, t.pattern);
+        
+        // ВАЖЛИВО: Виправлена логіка для max: 1
+        const min = t.min !== undefined ? t.min : (t.max !== undefined ? 0 : 2);
+        const max = t.max !== undefined ? t.max : Infinity;
+        const pass = cnt >= min && cnt <= max;
+        
+        let reason = "OK";
+        if (!pass) {
+          if (cnt < min) reason = `Потрібно мінімум ${min} співпадінь`;
+          else reason = `Забагато співпадінь (максимум ${max})`;
+        }
+        
+        results.push({ 
+          name, pass, reason, 
+          want: min === max ? `${min} matches` : (max === Infinity ? `${min}+ matches` : `від ${min} до ${max} matches`), 
+          got: String(cnt) 
+        });
         continue;
       }
 
       const stdoutTypes = new Set(["stdoutEquals","stdoutOneOf","stdoutRegex","stdoutContainsLines","stdoutUnorderedLines","stdoutNumber"]);
       if (!exec.ok && stdoutTypes.has(type)) {
-        results.push({ name, pass: false, reason: `Помилка виконання: ${exec.error}`, want: t.value ?? (t.values ? t.values.join(" | ") : ""), got: rawStdout });
+        results.push({ name, pass: false, reason: `Помилка виконання: ${exec.error}`, want: t.value ?? "", got: rawStdout });
         continue;
       }
 
@@ -1054,77 +1075,15 @@ async function renderLeaderboard() {
         continue;
       }
 
-      if (type === "stdoutOneOf") {
-        const normalize = t.normalize || "friendly";
-        const got = normalizeText(rawStdout, normalize);
-        const wants = (t.values || []).map(v => normalizeText(v, normalize));
-        const pass = wants.includes(got);
-        results.push({ name, pass, reason: pass ? "OK" : "Вивід має бути одним із варіантів", want: wants.join(" | "), got });
-        continue;
-      }
-
-      if (type === "stdoutRegex") {
-        const normalize = t.normalize || "friendly";
-        const got = normalizeText(rawStdout, normalize);
-        const pass = regexTest(got, t.pattern, t.flags || "");
-        results.push({ name, pass, reason: pass ? "OK" : "Вивід не відповідає шаблону", want: `/${t.pattern}/${t.flags || ""}`, got });
-        continue;
-      }
-
-      if (type === "stdoutContainsLines") {
-        const normalize = t.normalize || "friendly";
-        const gotLines = (normalizeText(rawStdout, normalize) || "").split("\n").filter(Boolean);
-        const need = (t.lines || []).map(x => normalizeText(x, normalize));
-        const pass = need.every(line => gotLines.includes(line));
-        results.push({ name, pass, reason: pass ? "OK" : "Не всі потрібні рядки знайдені", want: need.join("\\n"), got: gotLines.join("\\n") });
-        continue;
-      }
-
-      if (type === "stdoutUnorderedLines") {
-        const normalize = t.normalize || "friendly";
-        const got = (normalizeText(rawStdout, normalize) || "").split("\n").filter(Boolean).sort();
-        const want = (normalizeText(t.value, normalize) || "").split("\n").filter(Boolean).sort();
-        const pass = got.length === want.length && got.every((x, i) => x === want[i]);
-        results.push({ name, pass, reason: pass ? "OK" : "Рядки не збігаються (порядок не важливий)", want: want.join("\\n"), got: got.join("\\n") });
-        continue;
-      }
-
-      if (type === "stdoutNumber") {
-        const got = normalizeText(rawStdout, "loose");
-        const pass = approxEqual(got, t.value, t.eps ?? 1e-6);
-        results.push({ name, pass, reason: pass ? "OK" : "Число не збігається", want: String(t.value), got });
-        continue;
-      }
-
-      // code checks (sanitized)
       if (type === "codeIncludes") {
-        const pass = safeCode.includes(t.value);
-        results.push({ name, pass, reason: pass ? "OK" : `У коді має бути: ${t.value}`, want: t.value, got: "" });
-        continue;
-      }
-
-      if (type === "codeAll") {
-        const miss = (t.values || []).filter(v => !safeCode.includes(v));
-        const pass = miss.length === 0;
-        results.push({ name, pass, reason: pass ? "OK" : `Додай у код: ${miss.join(", ")}`, want: (t.values || []).join(", "), got: "" });
+        const needle = String(t.value ?? "");
+        const pass = targetCodeCompact.includes(compactWS(needle));
         continue;
       }
 
       if (type === "codeRegex") {
-        const pass = regexTest(safeCode, t.pattern, t.flags || "m");
+        const pass = regexTest(targetCode, t.pattern, t.flags || "m");
         results.push({ name, pass, reason: pass ? "OK" : "Код не відповідає шаблону", want: `/${t.pattern}/${t.flags || "m"}`, got: "" });
-        continue;
-      }
-
-      if (type === "requireIfElse") {
-        const pass = /\bif\b/.test(safeCode) && /\belse\b/.test(safeCode);
-        results.push({ name, pass, reason: pass ? "OK" : "Потрібно використати if та else", want: "if + else", got: "" });
-        continue;
-      }
-
-      if (type === "requireForRange") {
-        const pass = new RegExp(`\\brange\\s*\\(\\s*${t.start}\\s*,\\s*${t.end}\\s*\\)`).test(safeCode);
-        results.push({ name, pass, reason: pass ? "OK" : `Потрібно range(${t.start}, ${t.end})`, want: `range(${t.start},${t.end})`, got: "" });
         continue;
       }
 
