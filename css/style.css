@@ -1296,4 +1296,10 @@ html[data-theme="light"] .xp-breakdown {
   color: var(--warn); /* Золотий колір для бонусів */
 }
 
+#lessonExpected {
+  font-family: var(--mono, monospace) !important;
+  white-space: pre-wrap !important;
+  line-height: 1.4;
+  letter-spacing: 1px;
+}
 
