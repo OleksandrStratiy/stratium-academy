@@ -922,6 +922,38 @@ html[data-theme="light"] .CodeMirror-gutters {
   white-space: pre-wrap;
 }
 
+.term-input-row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:10px;
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background: rgba(0,0,0,.25);
+}
+
+.term-prompt{
+  color: var(--text-dim);
+  font-weight: 800;
+  font-family: "Fira Code", monospace;
+}
+
+.term-input{
+  width:100%;
+  background: transparent;
+  border:none;
+  outline:none;
+  color: var(--text);
+  font-family: "Fira Code", monospace;
+  font-size: 14px;
+}
+
+.term-input:disabled{
+  opacity: .55;
+  cursor: not-allowed;
+}
+
 .stdin{
   width: 100%;
   min-height: 120px;
