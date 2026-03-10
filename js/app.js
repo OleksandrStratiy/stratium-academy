@@ -43,7 +43,7 @@
 
   async function cloudLoadState(userId) {
     const { data, error } = await supa
-      .from("profiles")
+      .from("profile")
       .select("progress")
       .eq("id", userId)
       .maybeSingle();
@@ -53,7 +53,7 @@
 
   async function cloudSaveState(userId, fullState) {
     const { error } = await supa
-      .from("profiles")
+      .from("profile")
       .upsert({ id: userId, progress: fullState, updated_at: new Date().toISOString() });
     if (error) throw error;
   }
@@ -1521,7 +1521,7 @@ on($("btnGoogle"), "click", async () => {
           const { data: { user } } = await supa.auth.getUser();
           if (!user) throw new Error("Користувач не знайдений");
 
-          await supa.from("profiles").update({ class_code: null }).eq("id", user.id);
+          await supa.from("profile").update({ class_code: null }).eq("id", user.id);
           state.user.class_code = null;
           save();
           toast("✅ Вийшли з класу");
@@ -1581,7 +1581,7 @@ on($("btnGoogle"), "click", async () => {
           const { data: { user } } = await supa.auth.getUser();
           if (!user) throw new Error("Користувач не знайдений");
 
-          await supa.from("profiles").update({ role: newRole }).eq("id", user.id);
+          await supa.from("profile").update({ role: newRole }).eq("id", user.id);
           state.user.role = newRole;
           if (newRole === "student") {
             // If changing to student, perhaps clear class_code or something, but keep
