@@ -1499,10 +1499,6 @@ on($("btnGoogle"), "click", async () => {
   // Settings
   // ===========================
   function showSettings() {
-    if (!supa) {
-      toast("Налаштування доступні лише для зареєстрованих користувачів");
-      return;
-    }
     const overlay = $("settingsOverlay");
     if (!overlay) return;
 
@@ -1511,6 +1507,7 @@ on($("btnGoogle"), "click", async () => {
     const changeRoleMessage = $("changeRoleMessage");
     const btnCloseSettings = $("btnCloseSettings");
     const btnLeaveClass = $("btnLeaveClass");
+    const btnResetProgress = $("btnResetProgress");
 
     const currentRole = state.user?.role || "local";
     currentRoleEl.textContent = currentRole === "student" ? "Учень" : currentRole === "teacher" ? "Вчитель" : "Локальний";
@@ -1536,6 +1533,22 @@ on($("btnGoogle"), "click", async () => {
       };
     } else {
       btnLeaveClass.style.display = "none";
+    }
+
+    // Reset progress for local
+    if (currentRole === "local") {
+      btnResetProgress.style.display = "block";
+      btnResetProgress.onclick = () => {
+        if (!confirm("Скинути весь прогрес? Це не можна скасувати.")) return;
+        state.user = null;
+        save();
+        toast("Прогрес скинуто");
+        overlay.classList.remove("active");
+        goto("/home");
+        renderByRoute();
+      };
+    } else {
+      btnResetProgress.style.display = "none";
     }
 
     let canChange = false;
