@@ -19,33 +19,73 @@
 <body>
 
   <!-- AUTH -->
-  <div id="authOverlay" class="overlay">
-    <div class="modal auth-card">
+<div id="authOverlay" class="overlay">
+    <div class="modal auth-card" style="max-width: 480px;">
 
-        <div class="brand">
-          <div class="logo-shield" aria-label="Stratium">
-            <span class="logo-letter">S</span>
-          </div>
-          <div>
-            <div class="brand-main">STRATIUM</div>
-            <div class="brand-sub">ACADEMY</div>
-          </div>
+      <div class="brand" style="margin-bottom: 20px;">
+        <div class="logo-shield" aria-label="Stratium">
+          <span class="logo-letter">S</span>
+        </div>
+        <div>
+          <div class="brand-main">STRATIUM</div>
+          <div class="brand-sub">ACADEMY</div>
+        </div>
       </div>
 
-      <h2>Ласкаво просимо</h2>
+      <h2 style="margin-bottom: 20px;">Обери спосіб входу</h2>
       
-      <button id="btnGoogle" type="button" class="btn-primary full" style="margin-bottom:10px;">
-        <i class="ri-google-fill"></i> Увійти через Google
-      </button>
+      <div style="background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.3); padding: 20px; border-radius: 16px; margin-bottom: 20px; text-align: left;">
+        <h3 style="color: var(--text); margin-bottom: 8px; font-size: 16px;">☁️ Хмарний прогрес</h3>
+        <p class="mutedish tiny" style="margin-bottom: 14px; line-height: 1.5;">Зберігай прогрес назавжди, отримуй доступ з будь-якого пристрою та приєднуйся до віртуальних класів з вчителем.</p>
+        <button id="btnGoogle" type="button" class="btn-primary full">
+          <i class="ri-google-fill"></i> Увійти через Google
+        </button>
+      </div>
 
-      <p>Можна входити без реєстрації на сайті але твій прогрес буде зберігається лише  локально.</p>
-      <h2>Введи ім'я:</h2>
+      <div style="color: var(--text-dim); margin-bottom: 20px; font-weight: 700; font-size: 12px;">АБО</div>
 
-      <form id="loginForm">
-        <input type="text" id="usernameInput" placeholder="Нікнейм..." required autocomplete="off">
-        <button type="submit" class="btn-primary full">Почати</button>
-      </form>
-      <div id="loginErr" class="tiny" style="margin-top:10px;color:var(--danger);display:none;"></div>
+      <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 20px; border-radius: 16px; text-align: left;">
+        <h3 style="color: var(--text); margin-bottom: 8px; font-size: 16px;">💻 Локальний режим</h3>
+        <p style="color: var(--warn); font-size: 12px; margin-bottom: 14px; line-height: 1.5;">
+          ⚠️ Прогрес зберігається лише в цьому браузері. Якщо ти очистиш історію або зайдеш з телефону, доведеться починати спочатку.
+        </p>
+        <form id="loginForm">
+          <input type="text" id="usernameInput" placeholder="Твій нікнейм..." required autocomplete="off">
+          <button type="submit" class="full" style="background: rgba(255,255,255,0.1); border: 1px solid var(--border); color: var(--text); padding: 12px; border-radius: 14px; font-weight: 900; cursor: pointer;">
+            Грати локально
+          </button>
+        </form>
+        <div id="loginErr" class="tiny" style="margin-top:10px;color:var(--danger);display:none;"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="roleOverlay" class="overlay">
+    <div class="modal" style="max-width: 420px; text-align: center;">
+      <h2 style="margin-bottom: 10px;">Хто ти?</h2>
+      <p class="mutedish" style="margin-bottom: 24px; font-size: 14px;">Обери свою роль на платформі. Її не можна буде змінити пізніше.</p>
+
+      <div style="display: flex; gap: 14px; margin-bottom: 20px;">
+        <button id="btnRoleStudent" style="flex: 1; padding: 20px; border-radius: 16px; background: rgba(14,165,233,0.1); border: 1px solid rgba(14,165,233,0.3); cursor: pointer; transition: 0.2s;">
+          <div style="font-size: 32px; margin-bottom: 10px;">🎒</div>
+          <div style="color: var(--text); font-weight: 900;">Я Учень</div>
+        </button>
+
+        <button id="btnRoleTeacher" style="flex: 1; padding: 20px; border-radius: 16px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.3); cursor: pointer; transition: 0.2s;">
+          <div style="font-size: 32px; margin-bottom: 10px;">👨‍🏫</div>
+          <div style="color: var(--text); font-weight: 900;">Я Вчитель</div>
+        </button>
+      </div>
+
+      <div id="classCodeSection" style="display: none; text-align: left; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 14px; border: 1px solid var(--border);">
+        <label style="display: block; color: var(--text); font-weight: 900; margin-bottom: 8px; font-size: 14px;">Код класу (видає вчитель):</label>
+        <input type="text" id="classCodeInput" placeholder="Наприклад: PY-2026-A" style="margin-bottom: 14px; text-transform: uppercase;">
+        <button id="btnSubmitRole" class="btn-primary full">Зберегти та почати</button>
+        <div style="text-align: center; margin-top: 10px;">
+          <a href="#" id="btnSkipClass" style="color: var(--text-dim); font-size: 12px; text-decoration: underline;">У мене немає коду, пропустити</a>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -115,6 +155,18 @@
       </header>
 
       <!-- HOME VIEW -->
+       <div id="viewTeacher" class="view" style="display:none; padding: 20px;">
+    <div class="card" style="max-width: 900px; margin: 0 auto;">
+      <h2 style="margin-bottom: 10px;">👨‍🏫 Кабінет вчителя</h2>
+      <p class="mutedish" style="margin-bottom: 24px;">Тут ти зможеш керувати своїми класами та бачити прогрес учнів.</p>
+      
+      <div id="teacherContent">
+        <div style="text-align:center; padding: 40px; color: var(--text-dim);">
+          Завантаження даних... ⏳
+        </div>
+      </div>
+    </div>
+  </div>
        
       <div id="view-home" class="view active">
         <div class="hero hero-banner">
@@ -378,11 +430,21 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
   
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/runmode/runmode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/runmode/runmode.min.js"></script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/app.js"></script>
   
+<script src="js/app/helpers.js"></script>
+<script src="js/app/auth.js"></script>
+<script src="js/app/storage.js"></script>
+<script src="js/app/theme.js"></script>
+<script src="js/app/sidebar.js"></script>
+<script src="js/app/progress.js"></script>
+<script src="js/app/ui-home.js"></script>
+<script src="js/app/ui-course.js"></script>
+<script src="js/app/ui-leaderboard.js"></script>
+<script src="js/app.js"></script>
+
 </body>
 </html>
 
