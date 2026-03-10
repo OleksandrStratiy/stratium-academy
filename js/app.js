@@ -1262,11 +1262,11 @@ let myCodeMirror = null;
 
           const successOverlay = $("successOverlay");
           if (successOverlay) {
-            successOverlay.style.display = "block";
+            successOverlay.classList.add("active");
 
             // Кнопка "Далі"
             $("btnSuccessNext").onclick = () => {
-              successOverlay.style.display = "none";
+              successOverlay.classList.remove("active");
               if (idx < refs.length - 1) goto(`/lesson/${course.id}/${mod.id}/${idx + 1}`);
               else goto(`/course/${course.id}`);
             };
@@ -1275,7 +1275,7 @@ let myCodeMirror = null;
             const btnStay = $("btnSuccessStay");
             if (btnStay) {
               btnStay.onclick = () => {
-                successOverlay.style.display = "none";
+                successOverlay.classList.remove("active");
                 $("btnNext").classList.add("unlocked"); // Розблоковуємо кнопку далі внизу екрана
               };
             }
@@ -1390,6 +1390,7 @@ function renderByRoute() {
   // ===========================
   function bindEvents() {
     on($("btnGoHome"), "click", () => goto("/home"));
+    on($("btnOpenSettings"), "click", showSettings);
 
     on($("loginForm"), "submit", (e) => {
       e.preventDefault();
@@ -1492,6 +1493,102 @@ on($("btnGoogle"), "click", async () => {
       sbOverlay.classList.remove("active");
     };
     window.addEventListener("hashchange", renderByRoute);
+  }
+
+  // ===========================
+  // Settings
+  // ===========================
+  function showSettings() {
+    if (!supa) {
+      toast("Налаштування доступні лише для зареєстрованих користувачів");
+      return;
+    }
+    const overlay = $("settingsOverlay");
+    if (!overlay) return;
+
+    const currentRoleEl = $("currentRole");
+    const btnChangeRole = $("btnChangeRole");
+    const changeRoleMessage = $("changeRoleMessage");
+    const btnCloseSettings = $("btnCloseSettings");
+    const btnLeaveClass = $("btnLeaveClass");
+
+    const currentRole = state.user?.role || "local";
+    currentRoleEl.textContent = currentRole === "student" ? "Учень" : currentRole === "teacher" ? "Вчитель" : "Локальний";
+
+    // Leave class logic
+    if (currentRole === "student" && state.user?.class_code) {
+      btnLeaveClass.style.display = "block";
+      btnLeaveClass.onclick = async () => {
+        if (!confirm("Ви дійсно хочете вийти з класу?")) return;
+        try {
+          const { data: { user } } = await supa.auth.getUser();
+          if (!user) throw new Error("Користувач не знайдений");
+
+          await supa.from("profiles").update({ class_code: null }).eq("id", user.id);
+          state.user.class_code = null;
+          save();
+          toast("✅ Вийшли з класу");
+          overlay.classList.remove("active");
+        } catch (error) {
+          toast("❌ Не вдалося вийти з класу");
+          console.error(error);
+        }
+      };
+    } else {
+      btnLeaveClass.style.display = "none";
+    }
+
+    let canChange = false;
+    let newRole = "";
+    let message = "";
+
+    if (currentRole === "teacher") {
+      canChange = true;
+      newRole = "student";
+      message = "Можете змінити на учня.";
+    } else if (currentRole === "student") {
+      if (state.user?.class_code) {
+        canChange = false;
+        message = "Не можете стати вчителем, бо приєднані до класу.";
+      } else {
+        canChange = true;
+        newRole = "teacher";
+        message = "Можете змінити на вчителя.";
+      }
+    } else {
+      message = "Локальні користувачі не можуть змінювати роль.";
+    }
+
+    if (canChange) {
+      btnChangeRole.style.display = "block";
+      btnChangeRole.textContent = `Стати ${newRole === "student" ? "учнем" : "вчителем"}`;
+      changeRoleMessage.textContent = message;
+      btnChangeRole.onclick = async () => {
+        try {
+          const { data: { user } } = await supa.auth.getUser();
+          if (!user) throw new Error("Користувач не знайдений");
+
+          await supa.from("profiles").update({ role: newRole }).eq("id", user.id);
+          state.user.role = newRole;
+          if (newRole === "student") {
+            // If changing to student, perhaps clear class_code or something, but keep
+          }
+          save();
+          toast(`✅ Роль змінено на ${newRole === "student" ? "учень" : "вчитель"}`);
+          overlay.classList.remove("active");
+        } catch (error) {
+          toast("❌ Не вдалося змінити роль");
+          console.error(error);
+        }
+      };
+    } else {
+      btnChangeRole.style.display = "none";
+      changeRoleMessage.textContent = message;
+    }
+
+    btnCloseSettings.onclick = () => overlay.classList.remove("active");
+
+    overlay.classList.add("active");
   }
 
 // ===========================
