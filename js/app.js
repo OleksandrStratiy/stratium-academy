@@ -84,12 +84,7 @@
   // ===========================
   // DOM helpers
   // ===========================
-  const $ = (id) => document.getElementById(id);
-
-  function on(el, evt, fn) {
-    if (!el) return;
-    el.addEventListener(evt, fn);
-  }
+  const { $, on, escapeHtml, todayISO, levelFromXp } = window.App.helpers;
 
   // ===========================
   // Toast
@@ -136,14 +131,7 @@
   // ===========================
   // Dates / streak
   // ===========================
-  function todayISO() {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
+ 
   function updateStreak(user) {
     const t = todayISO();
     const last = user.lastDay || null;
@@ -165,58 +153,25 @@
   // ===========================
   // Level
   // ===========================
-  function levelFromXp(xp) {
-    let level = 1;
-    let threshold = 200;
-    let remaining = xp;
-    while (remaining >= threshold) {
-      remaining -= threshold;
-      level += 1;
-      threshold = Math.floor(threshold * 1.25);
-    }
-    return { level, inLevelXp: remaining, nextLevelXp: threshold };
-  }
+
 
     // ===========================
     // Storage
     // ===========================
-    const KEY = "py_lms_smart_v3_refactor";
-
-    const defaultState = {
-      user: null,
-      settings: { sound: true, theme: "dark" },
-      leaderboard: (typeof LEADERBOARD_SEED !== "undefined" ? LEADERBOARD_SEED.slice(0) : []),
-
-      // NEW: обрані рівні для курсів
-      courseLevels: {} // наприклад: { "python_basics": "Junior" }
-    };
-
-    function load() {
-      try {
-        const raw = localStorage.getItem(KEY);
-        return raw ? JSON.parse(raw) : null;
-      } catch {
-        return null;
-      }
-    }
+    const {
+      KEY,
+      defaultState,
+      load,
+      resetAll,
+      safeB64Encode,
+      safeB64Decode
+    } = window.App.storage;
 
     let state = load() || structuredClone(defaultState);
 
-  function save() {
-    localStorage.setItem(KEY, JSON.stringify(state));
-    // онлайн-синхронізація (тихо, з паузою)
-    scheduleCloudSync(() => state);
-  }
-
-    function resetAll() {
-      localStorage.removeItem(KEY);
-    }
-
-    function safeB64Encode(obj) {
-      return btoa(encodeURIComponent(JSON.stringify(obj)));
-    }
-    function safeB64Decode(b64) {
-      return JSON.parse(decodeURIComponent(atob((b64 || "").trim())));
+    function save() {
+      window.App.storage.save(state);
+      scheduleCloudSync(() => state);
     }
 
     // ===========================
@@ -234,27 +189,11 @@
     // Theme
     // ===========================
   function applyTheme(theme) {
-    const t = theme === "light" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", t);
-    state.settings.theme = t;
-
-    const icon = $("uiThemeIcon");
-    if (icon) icon.className = (t === "light") ? "ri-moon-line" : "ri-sun-line";
-    if (myCodeMirror) myCodeMirror.setOption("theme", t === "light" ? "default" : "dracula");
-
-    // ДОДАЙ ЦЕЙ БЛОК:
-    const themeClass = t === "light" ? "default" : "dracula";
-    document.querySelectorAll('.code-box').forEach(box => {
-      box.classList.remove('cm-s-default', 'cm-s-dracula');
-      box.classList.add(`cm-s-${themeClass}`);
-    });
+    return window.App.theme.applyTheme(theme, state, myCodeMirror);
   }
 
   function toggleTheme() {
-    const next = (state.settings.theme === "light") ? "dark" : "light";
-    applyTheme(next);
-    save(); // ← ТУТ ЗБЕРІГАЄМО, бо користувач реально змінив тему
-    toast(next === "light" ? "🌞 Світла тема" : "🌙 Темна тема");
+    return window.App.theme.toggleTheme(state, myCodeMirror, save, toast);
   }
 
     // ===========================
@@ -276,15 +215,7 @@
     // ===========================
     // Misc helpers
     // ===========================
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, (c) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-      }[c]));
-    }
+
 
     // ===========================
   // Course difficulty (Junior / Middle / Senior)
@@ -305,21 +236,7 @@
     save();
   }
 
-  // task.difficulty: "Junior" | "Middle" | "Senior" | "all"
-  function visibleTaskRefs(courseId, moduleId) {
-    const course = DB.find(c => c.id === courseId);
-    const mod = course?.modules.find(m => m.id === moduleId);
-    if (!course || !mod) return [];
-
-    const lvl = getCourseLevel(courseId) || "Junior";
-
-    return (mod.tasks || [])
-      .map((t, idx) => ({ t, origIdx: idx }))
-      .filter(r => {
-        const d = r.t.difficulty || "Junior";
-        return d === "all" || d === lvl;
-      });
-  }
+  
 
   // ===========================
   // Current pointers
@@ -367,288 +284,70 @@ function updateUserUI() {
   // ===========================
   // Progress helpers
   // ===========================
-  function uid(courseId, moduleId, idx) {
-    return `${courseId}_${moduleId}_${idx}`;
-  }
-
-  function completionState(id) {
-    return state.user?.completed?.[id] || null; // "xp" | "no_xp"
-  }
-
-  function setCompleted(id, mode) {
-    state.user.completed = state.user.completed || {};
-    state.user.completed[id] = mode;
-    save();
-  }
-
-  function isDone(courseId, moduleId, idx) {
-    const id = uid(courseId, moduleId, idx);
-    return !!completionState(id);
-  }
-
-  function getAttempts(id) {
-    return Number(state.user?.attempts?.[id] || 0);
-  }
-
-  function incAttempts(id) {
-    state.user.attempts = state.user.attempts || {};
-    state.user.attempts[id] = getAttempts(id) + 1;
-    save();
-    return state.user.attempts[id];
-  }
-
-  function isSpoiled(id) { return !!state.user?.spoiled?.[id]; }
-  function setSpoiled(id) {
-    state.user.spoiled = state.user.spoiled || {};
-    state.user.spoiled[id] = true;
-    save();
-  }
-
-  function getDraft(id) { return state.user?.drafts?.[id] ?? ""; }
-  function setDraft(id, code) {
-    state.user.drafts = state.user.drafts || {};
-    state.user.drafts[id] = code;
-    save();
-  }
-
-  function courseProgress(course) {
-    let total = 0, done = 0;
-    const lvl = getCourseLevel(course.id) || "Junior";
-
-    course.modules.forEach(m => {
-      (m.tasks || []).forEach((t, idx) => {
-        const d = t.difficulty || "Junior";
-        if (!(d === "all" || d === lvl)) return;
-        total++;
-        if (isDone(course.id, m.id, idx)) done++;
-      });
-    });
-
-    const pct = total ? Math.round((done / total) * 100) : 0;
-    return { total, done, pct };
-  }
-
-  function moduleProgress(courseId, moduleId) {
-    // Тепер беремо тільки завдання поточного рівня!
-    const refs = visibleTaskRefs(courseId, moduleId);
-    if (!refs.length) return { done: 0, total: 0 };
-
-    let done = 0;
-    refs.forEach(r => {
-      // Звертаємося по оригінальному індексу для збереження
-      if (isDone(courseId, moduleId, r.origIdx)) done++;
-    });
-    return { done, total: refs.length };
-  }
-
-  function isModuleCompleted(courseId, moduleId) {
-    const mp = moduleProgress(courseId, moduleId);
-    return mp.total > 0 && mp.done === mp.total;
-  }
-
-  function getModuleTasks(courseId, moduleId) {
-    const course = DB.find(c => c.id === courseId);
-    const mod = course?.modules.find(m => m.id === moduleId);
-    if (!course || !mod) return [];
   
-    // Старий формат: tasks = [{...}, {...}]
-    if (Array.isArray(mod.tasks)) return mod.tasks;
-  
-    // Новий формат приклад: taskRefs = ["t_print_1", "t_print_2"]
-    // і глобальний словник TASKS = { id: taskObj }
-    if (Array.isArray(mod.taskRefs) && typeof TASKS === "object") {
-      return mod.taskRefs.map(id => TASKS[id]).filter(Boolean);
-    }
-  
-    return [];
-  }
+const progressApi = window.App.progress.create({
+  state,
+  save,
+  DB,
+  TASKS: (typeof TASKS !== "undefined" ? TASKS : undefined),
+  getCourseLevel
+});
 
-  function calculateBonuses({ baseXp, attemptsBefore, taskId, courseId }) {
-    let sniper = 0;
-    let speed = 0;
-    let streakBonus = 0;
-  
-    // 🎯 Sniper
-    if (attemptsBefore === 0) {
-      sniper = Math.round(baseXp * 0.2);
-    }
-  
-    // ⚡ Speedrun
-    const session = state.user.taskSession;
-    if (session && session.id === taskId) {
-      const elapsedSec = (Date.now() - session.startedAt) / 1000;
-  
-      const level = (typeof getCourseLevel === "function" ? getCourseLevel(courseId) : null) || "Junior";
-      let limit = (level === "Senior") ? 360 : (level === "Middle") ? 240 : 180;
-  
-      if (elapsedSec <= limit) {
-        speed = Math.round(baseXp * 0.1);
-      }
-    }
-  
-    // 🔥 Streak
-    const streak = state.user.streak || 1;
-    streakBonus = Math.min(10, streak);
-  
-    return { sniper, speed, streakBonus };
-  }
+const uid = progressApi.uid;
+const completionState = progressApi.completionState;
+const setCompleted = progressApi.setCompleted;
+const isDone = progressApi.isDone;
+const getAttempts = progressApi.getAttempts;
+const incAttempts = progressApi.incAttempts;
+const isSpoiled = progressApi.isSpoiled;
+const setSpoiled = progressApi.setSpoiled;
+const getDraft = progressApi.getDraft;
+const setDraft = progressApi.setDraft;
+const getModuleTasks = progressApi.getModuleTasks;
+const visibleTaskRefs = progressApi.visibleTaskRefs;
+const courseProgress = progressApi.courseProgress;
+const moduleProgress = progressApi.moduleProgress;
+const isModuleCompleted = progressApi.isModuleCompleted;
+const calculateBonuses = progressApi.calculateBonuses;
+ 
+
+
 
   // ===========================
   // Sidebar rendering
   // ===========================
-  function isRoute(name) {
-    const p = routeParse();
-    return (p[0] || "home") === name;
-  }
 
-  function renderSidebarHome() {
-    const sb = $("sidebarContent");
-    if (!sb) return;
-    sb.innerHTML = `
-      <button class="menu-btn ${isRoute("home") ? "active" : ""}" data-nav="home"><i class="ri-home-4-line"></i> Головна</button>
-      <button class="menu-btn ${isRoute("leaderboard") ? "active" : ""}" data-nav="leaderboard"><i class="ri-trophy-line"></i> Рейтинг</button>
-      <button class="menu-btn" data-nav="settings"><i class="ri-settings-3-line"></i> Налаштування</button>
-    `;
-    sb.querySelectorAll("[data-nav]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const to = btn.getAttribute("data-nav");
-        if (to === "settings") openSettings();
-        else goto(`/${to}`);
-      });
-    });
-  }
+ 
 
-  function renderSidebarModulesOnly(courseId) {
-    const sb = $("sidebarContent");
-    if (!sb) return;
-    const course = DB.find(c => c.id === courseId);
-    if (!course) return renderSidebarHome();
-
-    sb.innerHTML = `
-      <button class="menu-btn" data-nav="home"><i class="ri-home-4-line"></i> Головна</button>
-      <div style="margin:12px 0 8px; padding:0 10px; color:var(--text-dim); font-size:12px; font-weight:900;">МОДУЛІ</div>
-        <button class="menu-btn" data-course-level="${course.id}">
-        <i class="ri-equalizer-line"></i> Рівень курсу
-      </button>
-      
-      ${course.modules.map(m => `
-      <button class="menu-btn" data-open-module="${course.id}|${m.id}">
-      <i class="${m.icon || 'ri-folder-line'}" 
-      style="color:${m.color || 'var(--text-dim)'}"></i> ${escapeHtml(m.title)}
-      </button>
-    `).join("")}
-
-      <button class="menu-btn" data-nav="leaderboard"><i class="ri-trophy-line"></i> Рейтинг</button>
-      <button class="menu-btn" data-nav="settings"><i class="ri-settings-3-line"></i> Налаштування</button>
-    `;
-
-    sb.querySelectorAll("[data-course-level]").forEach(b => {
-      b.onclick = () => {
-        const cid = b.getAttribute("data-course-level");
-    
-        // просто відкриваємо сторінку курсу (там уже є твої картки рівнів)
-        goto(`/course/${cid}`);
-    
-        // і мʼяко скролимо до блоку рівнів (додамо id в розмітку)
-        setTimeout(() => {
-          document.getElementById("levelCards")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 50);
-      };
-    });
-
-    sb.querySelectorAll("[data-nav]").forEach(b => {
-      const to = b.getAttribute("data-nav");
-      b.onclick = () => (to === "settings" ? openSettings() : goto(`/${to}`));
-    });
-
-    sb.querySelectorAll("[data-open-module]").forEach(b => {
-      b.onclick = () => {
-        const [cid, mid] = b.getAttribute("data-open-module").split("|");
-        goto(`/lesson/${cid}/${mid}/0`);
-      };
-    });
-  }
 
   function kindLabel(kind) {
     if (kind === "quiz") return "Контрольна";
     if (kind === "final") return "Підсумкова";
     return "Завдання";
   }
+  
+  const sidebarApi = window.App.sidebar.create({
+  $,
+  DB,
+  goto,
+  routeParse,
+  openSettings,
+  visibleTaskRefs,
+  uid,
+  completionState,
+  moduleProgress,
+  escapeHtml,
+  state
+});
 
-  function renderSidebarModuleTasks(courseId, moduleId, taskIdx) {
-    const sb = $("sidebarContent");
-    if (!sb) return;
-  
-    const course = DB.find(c => c.id === courseId);
-    const mod = course?.modules.find(m => m.id === moduleId);
-    if (!course || !mod) return renderSidebarHome();
-  
-    // ГОЛОВНЕ ВИПРАВЛЕННЯ: Беремо відфільтровані завдання!
-    const refs = visibleTaskRefs(courseId, moduleId);
-  
-    const tasksHtml = refs.map((ref, idx) => {
-      const t = ref.t;
-      const origIdx = ref.origIdx; // Індекс для бази даних
-      const id = uid(courseId, moduleId, origIdx);
-      
-      const cs = completionState(id);
-      const done = !!cs;
-      const noxp = cs === "no_xp";
-      const active = (idx === Number(taskIdx)) ? "active" : "";
-      const icon = done ? "ri-checkbox-circle-fill" : "ri-checkbox-blank-circle-line";
-      const extraCls = `${done ? "done" : ""} ${noxp ? "noxp" : ""}`;
-  
-      const tag = t.kind && t.kind !== "practice"
-        ? `<span class="task-tag exam">${escapeHtml(kindLabel(t.kind))}</span>`
-        : (noxp ? `<span class="task-tag noxp">Без XP</span>` : "");
-  
-      return `
-        <div class="task-link ${active} ${extraCls}" data-open-task="${courseId}|${moduleId}|${idx}">
-          <div class="left">
-            <i class="${icon}"></i>
-            <span>${idx + 1}. ${escapeHtml(t.title)}</span>
-          </div>
-          ${tag}
-        </div>
-      `;
-    }).join("");
-  
-    const mp = moduleProgress(courseId, moduleId);
-    const pct = mp.total ? Math.round((mp.done / mp.total) * 100) : 0;
-  
-    sb.innerHTML = `
-      <button class="menu-btn" data-nav="modules"><i class="ri-arrow-left-line"></i> До модулів</button>
-      <div style="margin:12px 0 8px; padding:0 10px; color:var(--text-dim); font-size:12px; font-weight:900;">
-        ${escapeHtml(course.title.toUpperCase())} • ${escapeHtml(mod.title.toUpperCase())}
-      </div>
-      <div style="padding:0 10px 12px;">
-        <div class="progress-line"><div class="progress-fill" style="width:${pct}%"></div></div>
-        <div class="tiny mutedish" style="text-align:right;margin-top:6px;">${mp.done}/${mp.total} • ${pct}%</div>
-      </div>
-      <div class="task-list-container open" style="display:block;">
-        ${tasksHtml || `<div style="padding:10px;color:var(--text-dim)">Немає завдань для цього рівня.</div>`}
-      </div>
-      <div style="margin-top:10px; padding:0 10px;">
-        <button class="menu-btn" data-nav="leaderboard"><i class="ri-trophy-line"></i> Рейтинг</button>
-        <button class="menu-btn" data-nav="settings"><i class="ri-settings-3-line"></i> Налаштування</button>
-      </div>
-    `;
-  
-    sb.querySelectorAll("[data-open-task]").forEach(el => {
-      el.addEventListener("click", () => {
-        const [cid, mid, i] = el.getAttribute("data-open-task").split("|");
-        goto(`/lesson/${cid}/${mid}/${i}`);
-      });
-    });
-  
-    sb.querySelectorAll("[data-nav]").forEach(el => {
-      const to = el.getAttribute("data-nav");
-      if (to === "modules") el.onclick = () => goto(`/course/${courseId}`);
-      else if (to === "settings") el.onclick = openSettings;
-      else el.onclick = () => goto(`/${to}`);
-    });
-  }
+const isRoute = sidebarApi.isRoute;
+const renderSidebarHome = sidebarApi.renderSidebarHome;
+const renderSidebarModulesOnly = sidebarApi.renderSidebarModulesOnly;
+
+function renderSidebarModuleTasks(courseId, moduleId, taskIdx) {
+  return sidebarApi.renderSidebarModuleTasks(courseId, moduleId, taskIdx, kindLabel);
+}
+ 
   
   function openCourseWithLevel(cid) {
     goto(`/course/${cid}`);
@@ -665,211 +364,48 @@ function updateUserUI() {
   // ===========================
   // Home / modules / leaderboard views
   // ===========================
-  function renderCoursesGrid() {
-    const grid = $("coursesList");
-    if (!grid) return;
+  const uiHomeApi = window.App.uiHome.create({
+    $,
+    DB,
+    escapeHtml,
+    courseProgress,
+    openCourseWithLevel,
+    setActiveView,
+    viewHome,
+    renderSidebarHome
+  });
 
-    grid.innerHTML = DB.map(c => {
-      const p = courseProgress(c);
-      return `
-        <div class="card" data-open-course="${c.id}">
-          <div style="font-size:34px; margin-bottom:10px">${c.icon}</div>
-          <h3>${escapeHtml(c.title)}</h3>
-          <p>${escapeHtml(c.desc)}</p>
-          <div class="progress-line"><div class="progress-fill" style="width:${p.pct}%"></div></div>
-          <div style="font-size:12px; margin-top:6px; color:var(--text-dim); text-align:right">${p.pct}%</div>
-        </div>
-      `;
-    }).join("");
+const renderCoursesGrid = uiHomeApi.renderCoursesGrid;
+const renderHome = uiHomeApi.renderHome;
 
-    grid.querySelectorAll("[data-open-course]").forEach(card => {
-      card.addEventListener("click", () => {
-        const cid = card.getAttribute("data-open-course");
-        openCourseWithLevel(cid);
-      });
-    });
-  }
+ 
+const uiCourseApi = window.App.uiCourse.create({
+  $,
+  DB,
+  LEVELS,
+  escapeHtml,
+  moduleProgress,
+  getCourseLevel,
+  setCourseLevel,
+  setActiveView,
+  viewModules,
+  renderSidebarModulesOnly,
+  goto,
+  toast
+});
 
-  function renderHome() {
-    setActiveView(viewHome);
-    $("breadcrumbs").innerText = "Головна";
-    renderSidebarHome();
-    renderCoursesGrid();
-  }
+const renderCourseModules = uiCourseApi.renderCourseModules;
 
-  function renderCourseModules(courseId) {
-    const course = DB.find(c => c.id === courseId);
-    if (!course) { toast("Курс не знайдено"); goto("/home"); return; }
+const uiLeaderboardApi = window.App.uiLeaderboard.create({
+  $,
+  state,
+  supa,
+  toast,
+  setActiveView,
+  viewLeaderboard
+});
 
-    setActiveView(viewModules);
-    $("breadcrumbs").innerHTML = `<span class="crumb" data-crumb-home style="cursor:pointer">Головна</span> / ${escapeHtml(course.title)}`;
-    $("modulesTitle").textContent = course.title;
-
-    // Отримуємо поточний рівень (за замовчуванням Junior)
-    const currentLvl = (typeof getCourseLevel === "function" ? getCourseLevel(course.id) : null) || "Junior";
-    if (!getCourseLevel(course.id)) {
-      toast("👋 Спочатку обери складність зверху — потім відкривай модулі 🙂");
-    }
-    // Генеруємо красиві картки рівнів
-    const levelsHtml = LEVELS.map(l => {
-      const isActive = l.id === currentLvl;
-      const icon = l.title.split(" ")[0]; // Беремо смайлик (🟢, 🟡, 🔴)
-      const name = l.title.split(" ")[1]; // Беремо назву (Junior, Middle, Senior)
-      
-      return `
-        <button class="lvl-btn ${isActive ? 'active' : ''}" data-set-lvl="${l.id}">
-          <div class="lvl-icon">${icon}</div>
-          <div class="lvl-info">
-            <div class="lvl-name">${name}</div>
-            <div class="lvl-desc">${escapeHtml(l.desc)}</div>
-          </div>
-        </button>
-      `;
-    }).join("");
-
-    // Вставляємо опис та новий віджет рівнів
-    $("modulesDesc").innerHTML = `
-      <p style="color: var(--text-dim); margin-bottom: 20px; font-size: 16px;">${escapeHtml(course.desc || "Обери модуль")}</p>
-      
-      <div class="level-selector-inline" id="levelCards">
-        <div class="level-selector-header">
-          <span>🎚️ Обери складність курсу</span>
-          <div class="info-tooltip">
-            <i class="ri-question-line"></i>
-            <div class="tooltip-text">Від рівня залежить складність завдань у модулях. Ти можеш змінити його будь-коли без втрати прогресу!</div>
-          </div>
-        </div>
-        <div class="level-options">
-          ${levelsHtml}
-        </div>
-      </div>
-    `;
-
-    // Вішаємо кліки на нові кнопки рівнів
-    document.querySelectorAll("[data-set-lvl]").forEach(btn => {
-      btn.onclick = () => {
-        const newLvl = btn.getAttribute("data-set-lvl");
-        if (newLvl !== currentLvl) {
-          setCourseLevel(course.id, newLvl);
-          renderCourseModules(course.id); // Перемальовуємо, щоб оновити прогрес-бари та активну кнопку
-          toast(`Рівень змінено на ${LEVELS.find(x => x.id === newLvl).title}`);
-        }
-      };
-    });
-
-    // Рендер карток модулів зі збереженням твоїх іконок та кольорів
-    const list = $("modulesList");
-    list.innerHTML = course.modules.map(m => {
-      const mp = moduleProgress(course.id, m.id);
-      const pct = mp.total ? Math.round((mp.done / mp.total) * 100) : 0;
-      return `
-        <div class="card" data-open-module="${course.id}|${m.id}">
-          <div style="font-size:28px;margin-bottom:8px">
-            <i class="${m.icon || 'ri-folder-line'}" style="color:${m.color || 'var(--text-dim)'}"></i>
-          </div>
-          <h3>${escapeHtml(m.title)}</h3>
-          <p>${escapeHtml(m.desc || "")}</p>
-          <div class="progress-line"><div class="progress-fill" style="width:${pct}%"></div></div>
-          <div style="font-size:12px; margin-top:6px; color:var(--text-dim); text-align:right">${pct}%</div>
-        </div>
-      `;
-    }).join("");
-
-    // Кліки по модулях
-    list.querySelectorAll("[data-open-module]").forEach(el => {
-      el.addEventListener("click", () => {
-        const [cid, mid] = el.getAttribute("data-open-module").split("|");
-        goto(`/lesson/${cid}/${mid}/0`);
-      });
-    });
-
-    renderSidebarModulesOnly(course.id);
-    document.querySelectorAll("[data-crumb-home]").forEach(el => el.onclick = () => goto("/home"));
-  }
-
-async function renderLeaderboard() {
-    setActiveView(viewLeaderboard);
-    $("breadcrumbs").innerText = "🏆 Рейтинг Академії";
-
-    const listEl = $("leaderboardList");
-    // Показуємо скелетон/завантаження, поки чекаємо дані з бази
-    listEl.innerHTML = `<div style="text-align:center; padding: 40px 20px; color: var(--text-dim); font-weight: 700; font-size: 16px;">Завантаження рейтингу... ⏳</div>`;
-
-    try {
-      let rows = [];
-
-      if (supa) {
-        // Витягуємо весь збережений прогрес з Supabase
-        const { data, error } = await supa
-          .from("progress")
-          .select("state");
-
-        if (error) throw error;
-
-        if (data) {
-          // Дістаємо дані користувачів із JSON-стану
-          rows = data
-            .map(row => row.state?.user)
-            .filter(u => u && typeof u.xp === 'number') // Відкидаємо пусті рядки
-            .map(u => ({
-              name: u.name || "Анонім",
-              xp: u.xp || 0,
-              streak: u.streak || 1
-            }));
-        }
-      } else {
-        // Fallback: якщо Supabase раптом відключений, показуємо локальні дані
-        const me = state.user ? { name: state.user.name, xp: state.user.xp, streak: state.user.streak } : null;
-        rows = state.leaderboard.concat(me ? [me] : []);
-      }
-
-      // Видаляємо дублікати за іменем (залишаємо той запис, де більше XP)
-      const byName = new Map();
-      rows.forEach(r => {
-        const prev = byName.get(r.name);
-        if (!prev || r.xp > prev.xp) byName.set(r.name, r);
-      });
-
-      // Сортуємо від найбільшого XP до найменшого і беремо ТОП-20
-      const sortedRows = Array.from(byName.values())
-        .sort((a, b) => b.xp - a.xp)
-        .slice(0, 20);
-
-      const myName = state.user?.name;
-
-      if (sortedRows.length === 0) {
-        listEl.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--text-dim);">Ще немає жодного гравця. Будь першим!</div>`;
-      } else {
-        // Рендеримо список
-        listEl.innerHTML = sortedRows.map((r, i) => {
-          const isMe = r.name === myName;
-          // Роздаємо медалі
-          const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `<span style="color:var(--text-dim); font-size:14px;">${i + 1}.</span>`;
-          
-          return `
-            <div class="rowBoard ${isMe ? "me" : ""}">
-              <div style="display:flex; align-items:center; gap: 14px;">
-                <div style="font-size: 24px; width: 34px; text-align: center;">${medal}</div>
-                <div>
-                  <div style="font-weight:900; font-size: 16px;">${escapeHtml(r.name)} ${isMe ? "<span style='font-size:12px; color:var(--primary);'>(Ти)</span>" : ""}</div>
-                  <div class="tag">🔥 Стрік: ${r.streak} дн.</div>
-                </div>
-              </div>
-              <div style="font-weight:900; color: ${i < 3 ? 'var(--warn)' : 'var(--primary)'}; font-size: 18px;">
-                ${r.xp} XP
-              </div>
-            </div>
-          `;
-        }).join("");
-      }
-
-    } catch (err) {
-      console.error("Помилка завантаження рейтингу:", err);
-      listEl.innerHTML = `<div style="text-align:center; padding: 20px; color: var(--danger);">Не вдалося завантажити дані. Перевір з'єднання або налаштування Supabase.</div>`;
-    }
-
-    renderSidebarHome();
-  }
+const renderLeaderboard = uiLeaderboardApi.renderLeaderboard;
 
 
 // ===========================
@@ -1794,7 +1330,33 @@ let myCodeMirror = null;
   // ===========================
   // Routes
   // ===========================
-  function renderByRoute() {
+  function renderTeacher() {
+    // 1. Перевіряємо, чи це дійсно вчитель
+    if (state?.user?.role !== "teacher") {
+      toast("⛔ Доступ заборонено. Ця сторінка лише для вчителів.");
+      return goto("/home");
+    }
+
+    // 2. Показуємо потрібний HTML-блок
+    setActiveView($("viewTeacher"));
+    
+    // 3. Оновлюємо ліве меню
+    sidebarApi.renderSidebarHome();
+
+    // 4. Запускаємо логіку модуля вчителя (його ми створимо наступним кроком)
+    if (window.App.uiTeacher) {
+      window.App.uiTeacher.create({ 
+        $, 
+        supa, 
+        state, 
+        toast 
+      }).renderDashboard();
+    } else {
+      $("teacherContent").innerHTML = `<div style="color:var(--danger); padding: 20px;">Модуль ui-teacher.js не підключено!</div>`;
+    }
+  }
+
+function renderByRoute() {
     if (!location.hash) goto("/home");
 
     if (!state.user) {
@@ -1815,6 +1377,7 @@ let myCodeMirror = null;
     if ((root === "course" || root === "modules") && parts[1]) return renderCourseModules(parts[1]);
     if (root === "lesson" && parts.length === 4) return renderLesson(parts[1], parts[2], parts[3]);
     if (root === "leaderboard") return renderLeaderboard();
+    if (root === "teacher") return renderTeacher(); // <--- ДОДАЛИ ЦЕЙ РЯДОК
 
     goto("/home");
   }
@@ -1931,54 +1494,77 @@ on($("btnGoogle"), "click", async () => {
     window.addEventListener("hashchange", renderByRoute);
   }
 
-  // ===========================
+// ===========================
   // Start
   // ===========================
-bindEvents();
-typingTick();
-applyTheme(state.settings.theme || "dark");
+  bindEvents();
+  typingTick();
+  applyTheme(state.settings.theme || "dark");
 
-(async () => {
-  // якщо користувач уже увійшов через Google — підтягуємо прогрес
-  if (supa) {
-    const user = await getSessionUser();
-    if (user) {
-      try {
-        const cloud = await cloudLoadState(user.id);
-        if (cloud) {
-          state = cloud;
-          save();
-        } else {
-          // перший вхід: якщо локально вже є user — заливаємо, якщо ні — створимо
-          if (!state.user) {
-            const name =
-              user.user_metadata?.full_name ||
-              user.email?.split("@")?.[0] ||
-              "User";
+  // --- 1. Ініціалізація нового модуля авторизації ---
+  const authUI = window.App.authUI.create({
+    $,
+    on,
+    supa,
+    state,
+    save,
+    toast,
+    updateStreak,
+    onAuthSuccess: () => {
+      goto("/home");
+      renderByRoute();
+    }
+  });
 
-            state.user = {
-              name,
-              xp: 0,
-              streak: 1,
-              lastDay: null,
-              completed: {},
-              attempts: {},
-              spoiled: {},
-              drafts: {},
-            };
+  // --- 2. Стартовий запуск (з перевіркою ролей) ---
+  (async () => {
+    // якщо користувач уже увійшов через Google — підтягуємо прогрес
+    if (supa) {
+      const user = await getSessionUser();
+      if (user) {
+        try {
+          const cloud = await cloudLoadState(user.id);
+          if (cloud) {
+            state = cloud;
+            save();
+          } else {
+            // перший вхід: якщо локально вже є user — заливаємо, якщо ні — створимо
+            if (!state.user) {
+              const name =
+                user.user_metadata?.full_name ||
+                user.email?.split("@")?.[0] ||
+                "User";
+
+              state.user = {
+                name,
+                xp: 0,
+                streak: 1,
+                lastDay: null,
+                completed: {},
+                attempts: {},
+                spoiled: {},
+                drafts: {},
+              };
+            }
+            save();
+            await cloudSaveState(user.id, state);
           }
-          save();
-          await cloudSaveState(user.id, state);
+
+          // === НОВЕ: ПЕРЕВІРЯЄМО ПРОФІЛЬ (Роль) ===
+          const isProfileComplete = await authUI.checkCloudProfile(user);
+          
+          // Якщо профілю немає, authUI покаже вікно вибору ролі і зупинить подальше завантаження
+          if (!isProfileComplete) return; 
+
+        } catch {
+          // якщо щось з хмарою не так — просто працюємо локально
         }
-      } catch {
-        // якщо щось з хмарою не так — просто працюємо локально
       }
     }
-  }
 
-  renderByRoute();
-})();
-})();
+    renderByRoute();
+  })();
+})(); // Це закриває найпершу функцію (function () { ... з початку файлу
 
 
 
