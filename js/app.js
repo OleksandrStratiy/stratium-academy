@@ -43,18 +43,18 @@
 
   async function cloudLoadState(userId) {
     const { data, error } = await supa
-      .from("progress")
-      .select("state")
-      .eq("user_id", userId)
+      .from("profiles")
+      .select("progress")
+      .eq("id", userId)
       .maybeSingle();
     if (error) throw error;
-    return data?.state ?? null;
+    return data?.progress ?? null;
   }
 
   async function cloudSaveState(userId, fullState) {
     const { error } = await supa
-      .from("progress")
-      .upsert({ user_id: userId, state: fullState, updated_at: new Date().toISOString() });
+      .from("profiles")
+      .upsert({ id: userId, progress: fullState, updated_at: new Date().toISOString() });
     if (error) throw error;
   }
 
@@ -1262,11 +1262,11 @@ let myCodeMirror = null;
 
           const successOverlay = $("successOverlay");
           if (successOverlay) {
-            successOverlay.classList.add("active");
+            successOverlay.style.display = "block";
 
             // Кнопка "Далі"
             $("btnSuccessNext").onclick = () => {
-              successOverlay.classList.remove("active");
+              successOverlay.style.display = "none";
               if (idx < refs.length - 1) goto(`/lesson/${course.id}/${mod.id}/${idx + 1}`);
               else goto(`/course/${course.id}`);
             };
@@ -1275,7 +1275,7 @@ let myCodeMirror = null;
             const btnStay = $("btnSuccessStay");
             if (btnStay) {
               btnStay.onclick = () => {
-                successOverlay.classList.remove("active");
+                successOverlay.style.display = "none";
                 $("btnNext").classList.add("unlocked"); // Розблоковуємо кнопку далі внизу екрана
               };
             }
