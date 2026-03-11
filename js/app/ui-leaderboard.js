@@ -1,7 +1,15 @@
-
 window.App = window.App || {};
 window.App.uiLeaderboard = (function () {
   "use strict";
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
 
   function create(deps) {
     const {
@@ -22,7 +30,7 @@ window.App.uiLeaderboard = (function () {
 
       listEl.innerHTML = `
         <div style="text-align:center; padding:40px 20px; color:var(--text-dim); font-weight:700; font-size:16px;">
-          Завантаження рейтингу. ⏳
+          Завантаження рейтингу... ⏳
         </div>
       `;
 
@@ -38,9 +46,9 @@ window.App.uiLeaderboard = (function () {
 
           if (data) {
             rows = data
-              .map(row => row.state?.user)
-              .filter(u => u && typeof u.xp === "number")
-              .map(u => ({
+              .map((row) => row.state?.user)
+              .filter((u) => u && typeof u.xp === "number")
+              .map((u) => ({
                 name: u.name || "Анонім",
                 xp: u.xp || 0,
                 streak: u.streak || 1
@@ -56,7 +64,7 @@ window.App.uiLeaderboard = (function () {
 
         const merged = new Map();
 
-        rows.forEach(r => {
+        rows.forEach((r) => {
           const key = (r.name || "Анонім").trim().toLowerCase();
           const prev = merged.get(key);
 
@@ -91,13 +99,17 @@ window.App.uiLeaderboard = (function () {
           const isMe = state.user && u.name === state.user.name;
 
           return `
-            <div class="lb-row ${isMe ? "me" : ""}">
-              <div class="lb-rank">${medal}</div>
-              <div class="lb-user">
-                <div class="lb-name">${u.name}</div>
-                <div class="lb-sub">🔥 ${u.streak || 1} day streak</div>
+            <div class="rowBoard ${isMe ? "me" : ""}">
+              <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+                <div style="min-width:52px; font-weight:900; color:var(--primary);">${medal}</div>
+                <div style="min-width:0;">
+                  <div style="font-weight:900; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    ${escapeHtml(u.name)}
+                  </div>
+                  <div class="tag">🔥 ${u.streak || 1} day streak</div>
+                </div>
               </div>
-              <div class="lb-xp">${u.xp || 0} XP</div>
+              <div style="font-weight:900; color:var(--text); white-space:nowrap;">${u.xp || 0} XP</div>
             </div>
           `;
         }).join("");
