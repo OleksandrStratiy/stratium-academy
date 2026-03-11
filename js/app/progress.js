@@ -61,6 +61,24 @@ window.App.progress = (function () {
       state.user.drafts[id] = code;
       save();
     }
+    function getErrorLogs(id) {
+  return state.user?.errorLogs?.[id] || [];
+}
+
+function addErrorLog(id, payload) {
+  state.user.errorLogs = state.user.errorLogs || {};
+  state.user.errorLogs[id] = state.user.errorLogs[id] || [];
+
+  state.user.errorLogs[id].unshift({
+    at: new Date().toISOString(),
+    ...payload
+  });
+
+  // залишаємо лише останні 20 записів
+  state.user.errorLogs[id] = state.user.errorLogs[id].slice(0, 20);
+
+  save();
+}
 
     function getModuleTasks(courseId, moduleId) {
       const course = DB.find(c => c.id === courseId);
@@ -149,24 +167,26 @@ window.App.progress = (function () {
       return { sniper, speed, streakBonus };
     }
 
-    return {
-      uid,
-      completionState,
-      setCompleted,
-      isDone,
-      getAttempts,
-      incAttempts,
-      isSpoiled,
-      setSpoiled,
-      getDraft,
-      setDraft,
-      getModuleTasks,
-      visibleTaskRefs,
-      courseProgress,
-      moduleProgress,
-      isModuleCompleted,
-      calculateBonuses
-    };
+return {
+  uid,
+  completionState,
+  setCompleted,
+  isDone,
+  getAttempts,
+  incAttempts,
+  isSpoiled,
+  setSpoiled,
+  getDraft,
+  setDraft,
+  getErrorLogs,
+  addErrorLog,
+  getModuleTasks,
+  visibleTaskRefs,
+  courseProgress,
+  moduleProgress,
+  isModuleCompleted,
+  calculateBonuses
+};
   }
 
   return { create };
