@@ -299,6 +299,13 @@ function updateUserUI() {
   // Progress helpers
   // ===========================
   
+// Перевіряємо, чи завантажився файл з курсами (core.js)
+if (typeof DB === "undefined") {
+  console.error("Критична помилка: Базу даних курсів (DB) не знайдено!");
+  alert("Помилка завантаження даних курсу. Спробуйте оновити сторінку.");
+  window.DB = []; // Створюємо порожній масив, щоб уникнути подальшого падіння скрипта
+}
+
 const progressApi = window.App.progress.create({
   state,
   save,
@@ -908,15 +915,12 @@ function buildTerminalReport(runResult) {
   // Settings modal
   // ===========================
   function openSettings() {
-    if (!$("soundToggle")) return;
-    $("soundToggle").checked = !!state.settings.sound;
-
-   
-    settingsOverlay && settingsOverlay.classList.add("active");
+    showSettings();
   }
 
   function closeSettings() {
-    settingsOverlay && settingsOverlay.classList.remove("active");
+    const overlay = $("settingsOverlay");
+    overlay && overlay.classList.remove("active");
   }
 
   function openLevelPicker(courseId, onDone) {
@@ -1188,15 +1192,27 @@ let myCodeMirror = null;
   setTermStatus("Running...");
 // RUN
     $("btnRun").onclick = async () => {
+      const btn = $("btnRun");
+      if (btn.disabled) return; // Блокуємо повторні натискання
+      
+      btn.disabled = true;
+      btn.style.opacity = "0.5";
+      btn.innerHTML = `<i class="ri-loader-4-line ri-spin"></i> Running...`; // Змінюємо текст кнопки
+
       const code = myCodeMirror.getValue();
       
       // Показуємо користувачу, що код виконується
       if (terminal) terminal.textContent = ">>> Running...\n";
       
-      // Чекаємо результатів від Skulpt
+// Чекаємо результатів від Skulpt
       const run = await runTaskTestsSmart(task, code);
 
       if (terminal) terminal.innerHTML = buildTerminalReport(run);
+
+      // ✅ ВСТАВЛЯЄМО РОЗБЛОКУВАННЯ ТУТ (одразу як код відпрацював)
+      btn.disabled = false;
+      btn.style.opacity = "1";
+      btn.innerHTML = `<i class="ri-play-fill"></i> Run`;
 
       // ==============================
       // FAIL (Помилка виконання або не пройдені тести)
@@ -1333,6 +1349,11 @@ let myCodeMirror = null;
       }
 
       renderSidebarModuleTasks(course.id, mod.id, idx);
+
+      // Розблоковуємо кнопку після завершення
+      btn.disabled = false;
+      btn.style.opacity = "1";
+      btn.innerHTML = `<i class="ri-play-fill"></i> Run`;
     };
 
     // breadcrumbs
@@ -1363,7 +1384,8 @@ let myCodeMirror = null;
         $, 
         supa, 
         state, 
-        toast 
+        toast,
+        refreshSidebar: () => sidebarApi.renderSidebarHome()
       }).renderDashboard();
     } else {
       $("teacherContent").innerHTML = `<div style="color:var(--danger); padding: 20px;">Модуль ui-teacher.js не підключено!</div>`;
@@ -1406,35 +1428,7 @@ function renderByRoute() {
     on($("btnGoHome"), "click", () => goto("/home"));
     on($("btnOpenSettings"), "click", showSettings);
 
-    on($("loginForm"), "submit", (e) => {
-      e.preventDefault();
-      const name = $("usernameInput").value.trim();
-      const err = $("loginErr");
-      if (name.length < 2) {
-        err.style.display = "block";
-        err.textContent = "Нікнейм має бути хоча б 2 символи.";
-        return;
-      }
-      err.style.display = "none";
 
-      state.user = {
-        name,
-        xp: 0,
-        streak: 1,
-        lastDay: null,
-        completed: {},
-        attempts: {},
-        spoiled: {},
-        drafts: {},
-      };
-      updateStreak(state.user);
-      save();
-
-      toast("✅ Вхід виконано");
-      hideAuth();
-      goto("/home");
-      renderByRoute();
-    });
 
 
 
@@ -1465,21 +1459,7 @@ function renderByRoute() {
       renderByRoute();
     });
 
-on($("btnLogout"), "click", async () => {
-  if (!confirm("Вийти з акаунту?")) return;
-
-  try { if (supa) await supa.auth.signOut(); } catch {}
-
-  state.user = null;
-  save();
-  closeSettings();
-  showAuth();
-  toast("👋 Вийшов");
-  goto("/home");
-  renderByRoute();
-});
-
-on($("btnGoogle"), "click", async () => {
+if (false) on($("btnGoogle"), "click", async () => {
   try {
     await signInWithGoogle();
   } catch {
