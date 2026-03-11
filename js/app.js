@@ -20,7 +20,13 @@
   const SUPABASE_ANON_KEY = "sb_publishable_joFcOKBLVWXy3SVSkTHuXg_ZpezeivF";
 
   const supa = (window.supabase && SUPABASE_URL.includes("supabase.co"))
-    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+})
     : null;
 
   async function signInWithGoogle() {
@@ -87,9 +93,19 @@
       
         // fallback: якщо state.user ще не створений — створимо мінімального локального
         if (!state.user) {
-          state.user = { name: "User", xp:0, streak:1, lastDay:null, completed:{}, attempts:{}, spoiled:{}, drafts:{} };
-          save();
-        }
+        state.user = {
+          name,
+          xp: 0,
+          streak: 1,
+          lastDay: null,
+          completed: {},
+          attempts: {},
+          spoiled: {},
+          drafts: {},
+          errorLogs: {},
+        };
+        save();
+      }
       }
     }, 900);
   }
@@ -220,9 +236,11 @@
     const viewModules = $("view-modules");
     const viewLesson = $("view-lesson");
     const viewLeaderboard = $("view-leaderboard");
+    const viewTeacher = $("viewTeacher"); // <-- Додали змінну
 
     function setActiveView(which) {
-      [viewHome, viewModules, viewLesson, viewLeaderboard].forEach(v => v && v.classList.remove("active"));
+      // <-- Додали viewTeacher у масив для очищення
+      [viewHome, viewModules, viewLesson, viewLeaderboard, viewTeacher].forEach(v => v && v.classList.remove("active"));
       if (which) which.classList.add("active");
     }
 
@@ -324,6 +342,8 @@ const isSpoiled = progressApi.isSpoiled;
 const setSpoiled = progressApi.setSpoiled;
 const getDraft = progressApi.getDraft;
 const setDraft = progressApi.setDraft;
+const getErrorLogs = progressApi.getErrorLogs;
+const addErrorLog = progressApi.addErrorLog;
 const getModuleTasks = progressApi.getModuleTasks;
 const visibleTaskRefs = progressApi.visibleTaskRefs;
 const courseProgress = progressApi.courseProgress;
@@ -406,6 +426,7 @@ const uiCourseApi = window.App.uiCourse.create({
   LEVELS,
   escapeHtml,
   moduleProgress,
+  isModuleCompleted,
   getCourseLevel,
   setCourseLevel,
   setActiveView,
@@ -1218,7 +1239,26 @@ let myCodeMirror = null;
       // FAIL (Помилка виконання або не пройдені тести)
       // ==============================
       if (!run.allPass) {
-        // ... (ДАЛІ ВЕСЬ ТВІЙ КОД ЗАЛИШАЄТЬСЯ БЕЗ ЗМІН)
+                const failedTests = (run.results || [])
+          .filter(r => !r.pass)
+          .map(r => ({
+            name: r.name || "Тест",
+            reason: r.reason || "Провалено",
+            want: r.want || "",
+            got: r.got || ""
+          }));
+
+        addErrorLog(id, {
+          courseId: course.id,
+          moduleId: mod.id,
+          moduleTitle: mod.title,
+          taskIndex: origIdx,
+          taskTitle: task.title || `Task ${origIdx + 1}`,
+          kind: !run.exec?.ok ? "runtime" : "tests",
+          runtimeError: run.exec?.ok ? "" : String(run.exec?.error || ""),
+          failedTests,
+          code: myCodeMirror.getValue()
+        });
         const alreadyDone = !!completionState(id);
         if (!alreadyDone) {
           const n = incAttempts(id);
@@ -1381,12 +1421,13 @@ let myCodeMirror = null;
     // 4. Запускаємо логіку модуля вчителя (його ми створимо наступним кроком)
     if (window.App.uiTeacher) {
       window.App.uiTeacher.create({ 
-        $, 
-        supa, 
-        state, 
-        toast,
-        refreshSidebar: () => sidebarApi.renderSidebarHome()
-      }).renderDashboard();
+  $, 
+  supa, 
+  state, 
+  toast,
+  save,
+  refreshSidebar: () => sidebarApi.renderSidebarHome()
+}).renderDashboard();
     } else {
       $("teacherContent").innerHTML = `<div style="color:var(--danger); padding: 20px;">Модуль ui-teacher.js не підключено!</div>`;
     }
@@ -1432,7 +1473,7 @@ function renderByRoute() {
 
 
 
-    on($("btnOpenSettings"), "click", openSettings);
+    // on($("btnOpenSettings"), "click", openSettings);
     on($("btnCloseSettings"), "click", closeSettings);
 
     on(settingsOverlay, "click", (e) => {
@@ -1600,10 +1641,13 @@ if (false) on($("btnGoogle"), "click", async () => {
           
           state.user.role = "teacher";
           state.user.class_code = null; // Виходимо з класу
+          state.user.teacherClasses = state.user.teacherClasses || [];
           save();
           toast("✅ Тепер ти Вчитель!");
           if (typeof sidebarApi !== "undefined") sidebarApi.renderSidebarHome();
           showSettings();
+          // автоматично відкриваємо кабінет вчителя
+          goto("/teacher");
         } catch (e) {
           toast("❌ Помилка");
           btnBecomeTeacher.innerHTML = `<i class="ri-user-star-line"></i> Стати Вчителем`;
@@ -1697,15 +1741,16 @@ if (false) on($("btnGoogle"), "click", async () => {
                 "User";
 
               state.user = {
-                name,
-                xp: 0,
-                streak: 1,
-                lastDay: null,
-                completed: {},
-                attempts: {},
-                spoiled: {},
-                drafts: {},
-              };
+              name,
+              xp: 0,
+              streak: 1,
+              lastDay: null,
+              completed: {},
+              attempts: {},
+              spoiled: {},
+              drafts: {},
+              errorLogs: {},
+};
             }
             save();
             await cloudSaveState(user.id, state);
