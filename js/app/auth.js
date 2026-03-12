@@ -118,30 +118,47 @@ window.App.authUI = (function () {
       }
 
       const classCode = classCodeInput ? classCodeInput.value.trim().toUpperCase() : null;
-      
-      try {
-        const { data: { user } } = await supa.auth.getUser();
-        if (!user) throw new Error("Користувача не знайдено");
 
-        // Зберігаємо профіль у БД
-        const { error } = await supa
-          .from("profiles")
-          .upsert({
-            id: user.id,
-            full_name: user.user_metadata?.full_name || "User",
-            role: selectedRole,
-            class_code: classCode || null,
-            updated_at: new Date().toISOString()
-          });
+try {
+  const { data: { user } } = await supa.auth.getUser();
+  if (!user) throw new Error("Користувача не знайдено");
 
-        if (error) throw error;
+  let validClassCode = null;
 
-        // Оновлюємо локальний стейт
-        if (state.user) {
-          state.user.role = selectedRole;
-          state.user.class_code = classCode;
-          save();
-        }
+  if (selectedRole === "student" && classCode) {
+    const { data: classRow, error: classErr } = await supa
+      .from("classes")
+      .select("code, name")
+      .eq("code", classCode)
+      .maybeSingle();
+
+    if (classErr) throw classErr;
+    if (!classRow) {
+      toast("⚠️ Клас з таким кодом не знайдено");
+      return;
+    }
+
+    validClassCode = classRow.code;
+  }
+
+  const { error } = await supa
+    .from("profiles")
+    .upsert({
+      id: user.id,
+      full_name: user.user_metadata?.full_name || "User",
+      role: selectedRole,
+      class_code: selectedRole === "student" ? validClassCode : null,
+      updated_at: new Date().toISOString()
+    });
+
+  if (error) throw error;
+
+  if (state.user) {
+    state.user.role = selectedRole;
+    state.user.class_code = selectedRole === "student" ? validClassCode : null;
+    state.user.teacherSchoolName = state.user.teacherSchoolName || "";
+    save();
+  }
 
         toast("✅ Профіль налаштовано!");
         hideRoleSelection();
