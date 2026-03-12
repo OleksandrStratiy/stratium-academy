@@ -102,7 +102,8 @@
   attempts: {},
   spoiled: {},
   drafts: {},
-  errorLogs: {}
+  errorLogs: {},
+  moduleAccess: {},
 };
         save();
       }
@@ -425,6 +426,7 @@ const uiCourseApi = window.App.uiCourse.create({
   DB,
   LEVELS,
   escapeHtml,
+  state,
   moduleProgress,
   isModuleCompleted,
   getCourseLevel,
@@ -1730,10 +1732,9 @@ if (false) on($("btnGoogle"), "click", async () => {
         try {
           const cloud = await cloudLoadState(user.id);
 if (cloud) {
-  Object.keys(state).forEach(k => delete state[k]);
-  Object.assign(state, cloud);
+  const base = structuredClone(defaultState);
 
-  state.user = state.user || {
+  state.user = {
     name: "User",
     xp: 0,
     streak: 1,
@@ -1742,14 +1743,24 @@ if (cloud) {
     attempts: {},
     spoiled: {},
     drafts: {},
-    errorLogs: {}
+    errorLogs: {},
+    moduleAccess: {},
+    ...(cloud.user || {})
   };
 
-  state.user.completed = state.user.completed || {};
-  state.user.attempts = state.user.attempts || {};
-  state.user.spoiled = state.user.spoiled || {};
-  state.user.drafts = state.user.drafts || {};
-  state.user.errorLogs = state.user.errorLogs || {};
+  state.settings = {
+    ...base.settings,
+    ...(cloud.settings || {})
+  };
+
+  state.leaderboard = Array.isArray(cloud.leaderboard)
+    ? cloud.leaderboard
+    : base.leaderboard;
+
+  state.courseLevels = {
+    ...base.courseLevels,
+    ...(cloud.courseLevels || {})
+  };
 
   save();
 } else {
@@ -1769,7 +1780,8 @@ if (cloud) {
   attempts: {},
   spoiled: {},
   drafts: {},
-  errorLogs: {}
+  errorLogs: {},
+  moduleAccess: {},
 };
             }
             save();
