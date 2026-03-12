@@ -17,6 +17,177 @@ window.App.uiTeacher = (function () {
 
     let activeClassCode = null;
     let activeStudents = [];
+    let teacherClasses = [];
+
+async function getCurrentUserId() {
+  if (!supa) return null;
+  const { data: { user } } = await supa.auth.getUser();
+  return user?.id || null;
+}
+
+function normalizeClassRow(row) {
+  return {
+    code: row.code,
+    name: row.name,
+    school_name: row.school_name || null,
+    show_class_in_global: !!row.show_class_in_global,
+    show_school_in_global: !!row.show_school_in_global,
+    show_school_in_class: !!row.show_school_in_class
+  };
+}
+
+function syncTeacherClassesToState() {
+  state.user.teacherClasses = teacherClasses.map(c => ({
+    code: c.code,
+    name: c.name,
+    school_name: c.school_name || null,
+    show_class_in_global: !!c.show_class_in_global,
+    show_school_in_global: !!c.show_school_in_global,
+    show_school_in_class: !!c.show_school_in_class
+  }));
+  state.user.teacherSchoolName = state.user.teacherSchoolName || "";
+  save();
+}
+
+async function fetchTeacherClasses() {
+  const userId = await getCurrentUserId();
+  if (!userId) return [];
+
+  const { data, error } = await supa
+    .from("classes")
+    .select("code, name, school_name, show_class_in_global, show_school_in_global, show_school_in_class, created_at")
+    .eq("teacher_id", userId)
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  return (data || []).map(normalizeClassRow);
+}
+
+async function migrateLegacyTeacherClasses() {
+  const userId = await getCurrentUserId();
+  if (!userId) return;
+
+  const legacy = Array.isArray(state.user?.teacherClasses) ? state.user.teacherClasses : [];
+  if (!legacy.length) return;
+
+  const payload = legacy.map(c => ({
+    code: c.code,
+    name: c.name,
+    school_name: c.school_name || state.user?.teacherSchoolName || null,
+    teacher_id: userId,
+    show_class_in_global: c.show_class_in_global ?? true,
+    show_school_in_global: c.show_school_in_global ?? false,
+    show_school_in_class: c.show_school_in_class ?? false,
+    updated_at: new Date().toISOString()
+  }));
+
+  const { error } = await supa
+    .from("classes")
+    .upsert(payload, { onConflict: "code" });
+
+  if (error) throw error;
+}
+
+async function reloadTeacherClasses() {
+  if (!supa) {
+    teacherClasses = Array.isArray(state.user?.teacherClasses)
+      ? state.user.teacherClasses.map(normalizeClassRow)
+      : [];
+    renderClasses();
+    return;
+  }
+
+  try {
+    teacherClasses = await fetchTeacherClasses();
+
+    if (!teacherClasses.length && Array.isArray(state.user?.teacherClasses) && state.user.teacherClasses.length) {
+      await migrateLegacyTeacherClasses();
+      teacherClasses = await fetchTeacherClasses();
+    }
+
+    syncTeacherClassesToState();
+    renderClasses();
+  } catch (err) {
+    console.error(err);
+    toast("❌ Не вдалося завантажити класи");
+  }
+}
+
+async function updateClassRecord(code, patch) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Teacher not found");
+
+  const { error } = await supa
+    .from("classes")
+    .update({
+      ...patch,
+      updated_at: new Date().toISOString()
+    })
+    .eq("code", code)
+    .eq("teacher_id", userId);
+
+  if (error) throw error;
+}
+
+async function deleteClassRecord(code) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Teacher not found");
+
+  const { error } = await supa
+    .from("classes")
+    .delete()
+    .eq("code", code)
+    .eq("teacher_id", userId);
+
+  if (error) throw error;
+}
+
+async function applySchoolNameToAllClasses(schoolName) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Teacher not found");
+
+  const { error } = await supa
+    .from("classes")
+    .update({
+      school_name: schoolName || null,
+      updated_at: new Date().toISOString()
+    })
+    .eq("teacher_id", userId);
+
+  if (error) throw error;
+
+  state.user.teacherSchoolName = schoolName || "";
+  save();
+}
+
+async function createClassRecord({ name, schoolName, showClassInGlobal, showSchoolInGlobal, showSchoolInClass }) {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error("Teacher not found");
+
+  let code = generateClassCode();
+  while (teacherClasses.some(c => c.code === code)) {
+    code = generateClassCode();
+  }
+
+  const { data, error } = await supa
+    .from("classes")
+    .insert({
+      code,
+      name,
+      school_name: schoolName || null,
+      teacher_id: userId,
+      show_class_in_global: !!showClassInGlobal,
+      show_school_in_global: !!showSchoolInGlobal,
+      show_school_in_class: !!showSchoolInClass,
+      updated_at: new Date().toISOString()
+    })
+    .select("code, name, school_name, show_class_in_global, show_school_in_global, show_school_in_class")
+    .single();
+
+  if (error) throw error;
+  return normalizeClassRow(data);
+}
+    
 
     async function fetchStudents(classCode) {
       if (!supa) return [];
@@ -145,11 +316,19 @@ window.App.uiTeacher = (function () {
       };
     }
 
-    function getModuleTaskTotal(mod) {
-      if (Array.isArray(mod.tasks)) return mod.tasks.length;
-      if (Array.isArray(mod.taskRefs)) return mod.taskRefs.length;
-      return 0;
-    }
+  function getModuleTasksForStats(mod) {
+  if (Array.isArray(mod.tasks)) return mod.tasks;
+
+  if (Array.isArray(mod.taskRefs) && typeof window.TASKS === "object") {
+    return mod.taskRefs.map(id => window.TASKS[id]).filter(Boolean);
+  }
+
+  return [];
+}
+
+function getModuleTaskTotal(mod) {
+  return getModuleTasksForStats(mod).length;
+}
 
     function buildStudentModuleStats(student) {
       const progress = student?.progress || {};
@@ -168,13 +347,13 @@ window.App.uiTeacher = (function () {
           const attemptIds = Object.keys(attempts).filter(k => k.startsWith(prefix));
           const spoiledIds = Object.keys(spoiled).filter(k => k.startsWith(prefix));
           const spoiledCount = spoiledIds.length;
-          const totalTasks = getModuleTaskTotal(mod);
-          const junior = [];
+          const moduleTasks = getModuleTasksForStats(mod);
+const totalTasks = moduleTasks.length;
+const junior = [];
 const middle = [];
 const senior = [];
 
-(mod.tasks || []).forEach((task, i) => {
-
+moduleTasks.forEach((task, i) => {
   const key = `${course.id}_${mod.id}_${i}`;
   const done = !!completed[key];
 
@@ -187,7 +366,6 @@ const senior = [];
   if (task.difficulty === "Junior") junior.push(obj);
   else if (task.difficulty === "Middle") middle.push(obj);
   else if (task.difficulty === "Senior") senior.push(obj);
-
 });
           const doneTasks = doneIds.length;
           const attemptsSum = attemptIds.reduce((sum, key) => sum + Number(attempts[key] || 0), 0);
@@ -508,82 +686,155 @@ function renderClasses() {
   const list = $("classesList");
   if (!list) return;
 
-  state.user.teacherClasses = state.user.teacherClasses || [];
-
-  if (state.user.teacherClasses.length === 0) {
-    list.innerHTML = `<div style="color:var(--text-dim); font-size:14px; padding:10px 0;">У тебе ще немає класів.</div>`;
+  if (teacherClasses.length === 0) {
+    list.innerHTML = `<div style="color:var(--text-dim);">Класів поки немає.</div>`;
     return;
   }
 
-  list.innerHTML = state.user.teacherClasses.map(c => `
+  list.innerHTML = teacherClasses.map(c => `
     <div class="class-badge" style="
       background:${activeClassCode === c.code ? "rgba(139,92,246,0.22)" : "rgba(139,92,246,0.10)"};
       border:1px solid var(--accent);
       color:var(--text);
-      padding:10px 16px;
-      border-radius:12px;
+      padding:12px 14px;
+      border-radius:14px;
       display:flex;
-      align-items:center;
-      gap:12px;
-      cursor:pointer;
-      transition:.2s;
+      flex-direction:column;
+      gap:10px;
+      min-width:280px;
     ">
-      <span class="open-class" data-code="${escapeHtml(c.code)}">
-        <div style="font-weight:800;">
-          ${escapeHtml(c.name)}
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px;">
+        <div class="open-class" data-code="${escapeHtml(c.code)}" style="cursor:pointer; flex:1;">
+          <div style="font-weight:800;">${escapeHtml(c.name)}</div>
+          <div style="font-size:12px;color:var(--text-dim)">код: ${escapeHtml(c.code)}</div>
+          ${
+            c.school_name
+              ? `<div style="font-size:12px;color:var(--text-dim)">заклад: ${escapeHtml(c.school_name)}</div>`
+              : ""
+          }
         </div>
 
-        <div style="font-size:12px;color:var(--text-dim)">
-          код: ${escapeHtml(c.code)}
-        </div>
-      </span>
+        <button class="delete-class" data-del="${escapeHtml(c.code)}" style="
+          background:transparent;
+          border:none;
+          color:var(--danger);
+          cursor:pointer;
+          padding:2px;
+          font-size:16px;
+          opacity:.75;
+        " title="Видалити клас">
+          <i class="ri-delete-bin-line" style="pointer-events:none;"></i>
+        </button>
+      </div>
 
-      <button class="delete-class" data-del="${escapeHtml(c.code)}" style="
-        background:transparent;
-        border:none;
-        color:var(--danger);
-        cursor:pointer;
-        padding:2px;
-        font-size:16px;
-        opacity:.75;
-      " title="Видалити клас">
-        <i class="ri-delete-bin-line" style="pointer-events:none;"></i>
-      </button>
+      <div style="display:grid; gap:6px; font-size:12px; color:var(--text-dim);">
+        <label style="display:flex; gap:8px; align-items:flex-start;">
+          <input type="checkbox" data-vis-class="${escapeHtml(c.code)}" ${c.show_class_in_global ? "checked" : ""}>
+          <span>Показувати назву класу в загальному рейтингу</span>
+        </label>
+
+        <label style="display:flex; gap:8px; align-items:flex-start;">
+          <input type="checkbox" data-vis-school-global="${escapeHtml(c.code)}" ${c.show_school_in_global ? "checked" : ""}>
+          <span>Показувати назву закладу в загальному рейтингу</span>
+        </label>
+
+        <label style="display:flex; gap:8px; align-items:flex-start;">
+          <input type="checkbox" data-vis-school-class="${escapeHtml(c.code)}" ${c.show_school_in_class ? "checked" : ""}>
+          <span>Показувати назву закладу в рейтингу класу</span>
+        </label>
+      </div>
     </div>
   `).join("");
 
-  list.querySelectorAll(".class-badge").forEach(badge => {
-    badge.addEventListener("click", async (e) => {
-      if (e.target.closest(".delete-class")) {
-        const btn = e.target.closest(".delete-class");
-        const c = btn.getAttribute("data-del");
+  list.querySelectorAll(".open-class").forEach(node => {
+    node.onclick = async () => {
+      await loadStudents(node.getAttribute("data-code"));
+    };
+  });
 
-        if (confirm(`Дійсно видалити клас ${c}? Дані учнів не видаляться, але ти більше не бачитимеш цей клас.`)) {
-          state.user.teacherClasses = state.user.teacherClasses.filter(x => x.code !== c);
-          save();
+  list.querySelectorAll(".delete-class").forEach(btn => {
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const code = btn.getAttribute("data-del");
 
-          if (activeClassCode === c) {
-            activeClassCode = null;
-            activeStudents = [];
-            $("studentsContainer").innerHTML = `
-              <div style="text-align:center; color: var(--text-dim); font-size: 16px;">
-                <i class="ri-group-line" style="font-size: 32px; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
-                Обери клас зверху, щоб побачити прогрес учнів
-              </div>
-            `;
-          }
-
-          renderClasses();
-          toast("🗑 Клас видалено");
-        }
+      if (!confirm(`Дійсно видалити клас ${code}? Дані учнів не видаляться, але ти більше не бачитимеш цей клас.`)) {
         return;
       }
 
-      const codeNode = badge.querySelector(".open-class");
-      if (codeNode) {
-        await loadStudents(codeNode.getAttribute("data-code"));
+      try {
+        await deleteClassRecord(code);
+        teacherClasses = teacherClasses.filter(x => x.code !== code);
+        syncTeacherClassesToState();
+
+        if (activeClassCode === code) {
+          activeClassCode = null;
+          activeStudents = [];
+          $("studentsContainer").innerHTML = `
+            <div style="text-align:center; color: var(--text-dim); font-size: 16px;">
+              <i class="ri-group-line" style="font-size: 32px; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
+              Обери клас зверху, щоб побачити прогрес учнів
+            </div>
+          `;
+        }
+
+        renderClasses();
+        toast("🗑 Клас видалено");
+      } catch (err) {
+        console.error(err);
+        toast("❌ Не вдалося видалити клас");
       }
-    });
+    };
+  });
+
+  list.querySelectorAll("[data-vis-class]").forEach(inp => {
+    inp.onchange = async () => {
+      const code = inp.getAttribute("data-vis-class");
+      try {
+        await updateClassRecord(code, { show_class_in_global: inp.checked });
+        const row = teacherClasses.find(c => c.code === code);
+        if (row) row.show_class_in_global = inp.checked;
+        syncTeacherClassesToState();
+        toast("✅ Налаштування збережено");
+      } catch (err) {
+        console.error(err);
+        inp.checked = !inp.checked;
+        toast("❌ Не вдалося зберегти");
+      }
+    };
+  });
+
+  list.querySelectorAll("[data-vis-school-global]").forEach(inp => {
+    inp.onchange = async () => {
+      const code = inp.getAttribute("data-vis-school-global");
+      try {
+        await updateClassRecord(code, { show_school_in_global: inp.checked });
+        const row = teacherClasses.find(c => c.code === code);
+        if (row) row.show_school_in_global = inp.checked;
+        syncTeacherClassesToState();
+        toast("✅ Налаштування збережено");
+      } catch (err) {
+        console.error(err);
+        inp.checked = !inp.checked;
+        toast("❌ Не вдалося зберегти");
+      }
+    };
+  });
+
+  list.querySelectorAll("[data-vis-school-class]").forEach(inp => {
+    inp.onchange = async () => {
+      const code = inp.getAttribute("data-vis-school-class");
+      try {
+        await updateClassRecord(code, { show_school_in_class: inp.checked });
+        const row = teacherClasses.find(c => c.code === code);
+        if (row) row.show_school_in_class = inp.checked;
+        syncTeacherClassesToState();
+        toast("✅ Налаштування збережено");
+      } catch (err) {
+        console.error(err);
+        inp.checked = !inp.checked;
+        toast("❌ Не вдалося зберегти");
+      }
+    };
   });
 }
 
@@ -806,19 +1057,48 @@ function renderClasses() {
       renderStudentsTable(classCode, students);
     }
 
-    async function renderDashboard() {
-      const container = $("teacherContent");
-      if (!container) return;
+ async function renderDashboard() {
+  const container = $("teacherContent");
+  if (!container) return;
 
-      state.user.teacherClasses = state.user.teacherClasses || [];
+  state.user.teacherClasses = state.user.teacherClasses || [];
+  state.user.teacherSchoolName = state.user.teacherSchoolName || "";
 
-      container.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px; flex-wrap:wrap; gap:14px;">
-          <div>
-            <h3 style="margin-bottom:6px;">📚 Твої класи</h3>
-            <div style="color: var(--text-dim); font-size: 13px;">Створи код класу і дай його учням.</div>
-          </div>
+  container.innerHTML = `
+    <div style="display:grid; gap:18px;">
+      <div style="background:rgba(255,255,255,.02); border:1px solid var(--border); border-radius:16px; padding:18px;">
+        <h3 style="margin:0 0 10px 0;">🏫 Назва закладу</h3>
+        <div style="color:var(--text-dim); font-size:13px; margin-bottom:12px;">
+          Ця назва буде використовуватись для всіх твоїх класів і може показуватись у рейтингу, якщо ти це дозволиш.
+        </div>
 
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <input
+            type="text"
+            id="teacherSchoolNameInput"
+            placeholder="Напр. Ліцей №12"
+            style="
+              padding:10px 14px;
+              border-radius:10px;
+              border:1px solid var(--border);
+              background: rgba(0,0,0,0.2);
+              color: var(--text);
+              width: 280px;
+            "
+          >
+          <button id="btnSaveSchoolName" class="btn-primary" style="padding:10px 16px; border-radius:10px;">
+            Застосувати до всіх класів
+          </button>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:14px;">
+        <div>
+          <h3 style="margin-bottom:6px;">📚 Твої класи</h3>
+          <div style="color: var(--text-dim); font-size: 13px;">Створи код класу і дай його учням.</div>
+        </div>
+
+        <div style="display:grid; gap:10px;">
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <input
               type="text"
@@ -830,66 +1110,105 @@ function renderClasses() {
                 border:1px solid var(--border);
                 background: rgba(0,0,0,0.2);
                 color: var(--text);
-                text-transform: uppercase;
-                width: 180px;
+                width: 220px;
               "
             >
             <button id="btnAddClass" class="btn-primary" style="padding:10px 16px; border-radius:10px;">
               <i class="ri-add-line"></i> Створити
             </button>
           </div>
-        </div>
 
-        <div id="classesList" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:30px;"></div>
+          <div style="display:grid; gap:6px; font-size:12px; color:var(--text-dim);">
+            <label style="display:flex; gap:8px; align-items:flex-start;">
+              <input type="checkbox" id="newClassShowGlobal" checked>
+              <span>Показувати назву класу в загальному рейтингу</span>
+            </label>
 
-        <div id="studentsContainer" style="
-          background: rgba(255,255,255,0.02);
-          border: 1px solid var(--border);
-          border-radius: 16px;
-          padding: 24px;
-          min-height: 200px;
-          display: flex;
-          flex-direction: column;
-          justify-content: center;
-        ">
-          <div style="text-align:center; color: var(--text-dim); font-size: 16px;">
-            <i class="ri-group-line" style="font-size: 32px; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
-            Обери клас зверху, щоб побачити прогрес учнів
+            <label style="display:flex; gap:8px; align-items:flex-start;">
+              <input type="checkbox" id="newClassShowSchoolGlobal">
+              <span>Показувати назву закладу в загальному рейтингу</span>
+            </label>
+
+            <label style="display:flex; gap:8px; align-items:flex-start;">
+              <input type="checkbox" id="newClassShowSchoolClass">
+              <span>Показувати назву закладу в рейтингу класу</span>
+            </label>
           </div>
         </div>
-      `;
+      </div>
 
-      renderClasses();
+      <div id="classesList" style="display:flex; gap:12px; flex-wrap:wrap;"></div>
 
-      const addBtn = $("btnAddClass");
-      if (addBtn) {
-        addBtn.onclick = () => {
-          const name = $("newClassInput").value.trim();
+      <div id="studentsContainer" style="
+        background: rgba(255,255,255,0.02);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 24px;
+        min-height: 200px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      ">
+        <div style="text-align:center; color: var(--text-dim); font-size: 16px;">
+          <i class="ri-group-line" style="font-size: 32px; display: block; margin-bottom: 10px; opacity: 0.5;"></i>
+          Обери клас зверху, щоб побачити прогрес учнів
+        </div>
+      </div>
+    </div>
+  `;
 
-if (!name) return toast("⚠️ Введи назву класу!");
+  $("teacherSchoolNameInput").value = state.user.teacherSchoolName || "";
 
-state.user.teacherClasses = state.user.teacherClasses || [];
+  await reloadTeacherClasses();
 
-let code = generateClassCode();
+  const addBtn = $("btnAddClass");
+  if (addBtn) {
+    addBtn.onclick = async () => {
+      const name = $("newClassInput").value.trim();
+      const schoolName = $("teacherSchoolNameInput").value.trim();
 
-while(state.user.teacherClasses.some(c => c.code === code)){
-  code = generateClassCode();
-}
+      if (!name) return toast("⚠️ Введи назву класу!");
 
-state.user.teacherClasses.push({
-  name,
-  code
-});
-          save();
+      try {
+        state.user.teacherSchoolName = schoolName || "";
+        save();
 
-          $("newClassInput").value = "";
-          toast("✅ Клас успішно створено!");
-          renderClasses();
+        await createClassRecord({
+          name,
+          schoolName,
+          showClassInGlobal: $("newClassShowGlobal").checked,
+          showSchoolInGlobal: $("newClassShowSchoolGlobal").checked,
+          showSchoolInClass: $("newClassShowSchoolClass").checked
+        });
 
-          if (typeof refreshSidebar === "function") refreshSidebar();
-        };
+        $("newClassInput").value = "";
+        await reloadTeacherClasses();
+        toast("✅ Клас успішно створено!");
+
+        if (typeof refreshSidebar === "function") refreshSidebar();
+      } catch (e) {
+        console.error(e);
+        toast("❌ Не вдалося створити клас");
       }
-    }
+    };
+  }
+
+  const btnSaveSchoolName = $("btnSaveSchoolName");
+  if (btnSaveSchoolName) {
+    btnSaveSchoolName.onclick = async () => {
+      const schoolName = $("teacherSchoolNameInput").value.trim();
+
+      try {
+        await applySchoolNameToAllClasses(schoolName);
+        await reloadTeacherClasses();
+        toast("✅ Назву закладу оновлено для всіх твоїх класів");
+      } catch (e) {
+        console.error(e);
+        toast("❌ Не вдалося оновити назву закладу");
+      }
+    };
+  }
+}
 
     return { renderDashboard };
   }
