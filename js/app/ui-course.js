@@ -10,6 +10,7 @@ window.App.uiCourse = (function () {
       LEVELS,
       escapeHtml,
       moduleProgress,
+      isModuleCompleted,
       getCourseLevel,
       setCourseLevel,
       setActiveView,
@@ -81,23 +82,59 @@ window.App.uiCourse = (function () {
       });
 
       const list = $("modulesList");
-      list.innerHTML = course.modules.map(m => {
-        const mp = moduleProgress(course.id, m.id);
-        const pct = mp.total ? Math.round((mp.done / mp.total) * 100) : 0;
+      const sortedModules = [...course.modules].sort((a, b) => (a.order || 999) - (b.order || 999));
 
-        return `
-          <div class="card" data-open-module="${course.id}|${m.id}">
-            <div style="font-size:34px; margin-bottom:10px; color:${m.color || "inherit"}">${m.icon ? `<i class="${m.icon}"></i>` : "📘"}</div>            <h3>${escapeHtml(m.title)}</h3>
-            <p>${escapeHtml(m.desc || "Практика + мініконтроль")}</p>
-            <div class="progress-line"><div class="progress-fill" style="width:${pct}%"></div></div>
-            <div style="font-size:12px; margin-top:6px; color:var(--text-dim); text-align:right">${mp.done}/${mp.total} • ${pct}%</div>
-          </div>
-        `;
-      }).join("");
+let prevCompleted = true;
+
+list.innerHTML = sortedModules.map((m, index) => {
+  const mp = moduleProgress(course.id, m.id);
+  const pct = mp.total ? Math.round((mp.done / mp.total) * 100) : 0;
+
+  const completed = isModuleCompleted(course.id, m.id);
+  const unlocked = index === 0 ? true : prevCompleted;
+
+  const html = `
+    <div class="card ${unlocked ? "" : "locked"}"
+         data-open-module="${unlocked ? `${course.id}|${m.id}` : ""}"
+         style="${unlocked ? "" : "opacity:.55; cursor:not-allowed;"}">
+      
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+        <div style="font-size:34px; margin-bottom:10px; color:${m.color || "inherit"}">
+          ${m.icon ? `<i class="${m.icon}"></i>` : "📘"}
+        </div>
+        <div style="font-size:12px; color:var(--text-dim);">
+          ${escapeHtml(m.unit || "Без розділу")}
+        </div>
+      </div>
+
+      <h3>
+        ${escapeHtml(m.title)}
+        ${completed ? " ✅" : ""}
+        ${!unlocked ? " 🔒" : ""}
+      </h3>
+
+      <p>${escapeHtml(m.desc || "Практика + мініконтроль")}</p>
+
+      <div class="progress-line">
+        <div class="progress-fill" style="width:${pct}%"></div>
+      </div>
+
+      <div style="font-size:12px; margin-top:6px; color:var(--text-dim); text-align:right">
+        ${mp.done}/${mp.total} • ${pct}%
+      </div>
+    </div>
+  `;
+
+  prevCompleted = completed;
+  return html;
+}).join("");
 
       list.querySelectorAll("[data-open-module]").forEach(card => {
         card.addEventListener("click", () => {
-          const [cid, mid] = card.getAttribute("data-open-module").split("|");
+          const value = card.getAttribute("data-open-module");
+          if (!value) return;
+
+          const [cid, mid] = value.split("|");
           goto(`/lesson/${cid}/${mid}/0`);
         });
       });
