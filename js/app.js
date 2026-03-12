@@ -94,16 +94,16 @@
         // fallback: якщо state.user ще не створений — створимо мінімального локального
         if (!state.user) {
         state.user = {
-          name,
-          xp: 0,
-          streak: 1,
-          lastDay: null,
-          completed: {},
-          attempts: {},
-          spoiled: {},
-          drafts: {},
-          errorLogs: {},
-        };
+  name: "User",
+  xp: 0,
+  streak: 1,
+  lastDay: null,
+  completed: {},
+  attempts: {},
+  spoiled: {},
+  drafts: {},
+  errorLogs: {}
+};
         save();
       }
       }
@@ -1729,10 +1729,30 @@ if (false) on($("btnGoogle"), "click", async () => {
       if (user) {
         try {
           const cloud = await cloudLoadState(user.id);
-          if (cloud) {
-            state = cloud;
-            save();
-          } else {
+if (cloud) {
+  Object.keys(state).forEach(k => delete state[k]);
+  Object.assign(state, cloud);
+
+  state.user = state.user || {
+    name: "User",
+    xp: 0,
+    streak: 1,
+    lastDay: null,
+    completed: {},
+    attempts: {},
+    spoiled: {},
+    drafts: {},
+    errorLogs: {}
+  };
+
+  state.user.completed = state.user.completed || {};
+  state.user.attempts = state.user.attempts || {};
+  state.user.spoiled = state.user.spoiled || {};
+  state.user.drafts = state.user.drafts || {};
+  state.user.errorLogs = state.user.errorLogs || {};
+
+  save();
+} else {
             // перший вхід: якщо локально вже є user — заливаємо, якщо ні — створимо
             if (!state.user) {
               const name =
@@ -1741,15 +1761,15 @@ if (false) on($("btnGoogle"), "click", async () => {
                 "User";
 
               state.user = {
-              name,
-              xp: 0,
-              streak: 1,
-              lastDay: null,
-              completed: {},
-              attempts: {},
-              spoiled: {},
-              drafts: {},
-              errorLogs: {},
+  name,
+  xp: 0,
+  streak: 1,
+  lastDay: null,
+  completed: {},
+  attempts: {},
+  spoiled: {},
+  drafts: {},
+  errorLogs: {}
 };
             }
             save();
