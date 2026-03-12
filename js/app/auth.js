@@ -56,6 +56,7 @@ window.App.authUI = (function () {
         spoiled: {},
         drafts: {},
         errorLogs: {},
+        moduleAccess: {},
       };
       
       updateStreak(state.user);
