@@ -69,10 +69,10 @@ function addErrorLog(id, payload) {
   state.user.errorLogs = state.user.errorLogs || {};
   state.user.errorLogs[id] = state.user.errorLogs[id] || [];
 
-  state.user.errorLogs[id].unshift({
-    at: new Date().toISOString(),
-    ...payload
-  });
+state.user.errorLogs[id].unshift({
+  at: new Date().toISOString(),
+  ...(payload || {})
+});
 
   // залишаємо лише останні 20 записів
   state.user.errorLogs[id] = state.user.errorLogs[id].slice(0, 20);
