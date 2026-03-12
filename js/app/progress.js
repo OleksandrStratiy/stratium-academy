@@ -17,8 +17,24 @@ window.App.progress = (function () {
     }
 
     function completionState(id) {
-      return state.user?.completed?.[id] || null; // "xp" | "no_xp"
-    }
+  const direct = state.user?.completed?.[id] || null;
+  if (direct) return direct; // "xp" | "no_xp"
+
+  // fallback для старих / мігрованих станів:
+  // якщо фінальне рішення вже є, але completed загубився,
+  // вважаємо задачу зарахованою, щоб не дати XP вдруге
+  const hasSavedSolution =
+    state.user?.solutions &&
+    Object.prototype.hasOwnProperty.call(state.user.solutions, id);
+
+  if (!hasSavedSolution) return null;
+
+  // якщо задача була "зіпсована" (відкривали розв'язок) — без XP
+  if (state.user?.spoiled?.[id]) return "no_xp";
+
+  // інакше вважаємо, що вона вже була зарахована з XP
+  return "xp";
+}
 
     function setCompleted(id, mode) {
       state.user.completed = state.user.completed || {};
@@ -69,12 +85,11 @@ function addErrorLog(id, payload) {
   state.user.errorLogs = state.user.errorLogs || {};
   state.user.errorLogs[id] = state.user.errorLogs[id] || [];
 
-state.user.errorLogs[id].unshift({
-  at: new Date().toISOString(),
-  ...(payload || {})
-});
+  state.user.errorLogs[id].unshift({
+    at: new Date().toISOString(),
+    ...(payload || {})
+  });
 
-  // залишаємо лише останні 20 записів
   state.user.errorLogs[id] = state.user.errorLogs[id].slice(0, 20);
 
   save();
