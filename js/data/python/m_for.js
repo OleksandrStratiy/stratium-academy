@@ -2,6 +2,8 @@
 (function () {
   "use strict";
 
+  const code = (...lines) => lines.join("\n");
+
   const moduleObj = {
     id: "m_for",
     title: "Цикл: for та range()",
@@ -1183,6 +1185,258 @@
           { type: "codeRegex", name: "Додавання upper", pattern: "result\\s*\\+\\s*=\\s*char\\.upper\\s*\\(\\)" },
           { type: "codeRegex", name: "Додавання lower в else", pattern: "else\\s*:\\s*\\n\\s*result\\s*\\+\\s*=\\s*char\\.lower\\s*\\(\\)" },
           { type: "codeRegex", name: "Фінальний вивід", pattern: "\\nprint\\s*\\(\\s*result\\s*\\)" }
+        ]
+      },
+      // ==========================================
+      // 🔴 РІВЕНЬ: SENIOR (Вкладені цикли, алгоритми, for-else)
+      // ==========================================
+
+      {
+        title: "✖️ Таблиця множення",
+        xp: 150,
+        kind: "practice",
+        difficulty: "Senior",
+        theory: `
+          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Вкладені цикли</h2>
+          <p>Цикл усередині циклу: зовнішній перебирає рядки, внутрішній — стовпчики. Внутрішній цикл повністю виконується на кожному кроці зовнішнього.</p>
+          <p>Щоб числа стояли рівно, вирівнюй їх у f-рядку: <code>f"{n:>3}"</code> — праворуч у полі шириною 3.</p>
+        `,
+        desc: `
+          <div class="task-main"><p>Надрукуй таблицю множення 1–5 рівними стовпчиками.</p></div>
+          <div class="task-condition"><b>Умова:</b> Для кожного <code>i</code> від 1 до 5 збери рядок з добутків <code>i * j</code> (<code>j</code> від 1 до 5), кожен у форматі <code>f"{i * j:>3}"</code>, і виведи його.</div>
+        `,
+        hint: code("for i in range(1, 6):", '    line = ""', "    for j in range(1, 6):", '        line += f"{i * j:>3}"', "    print(line)"),
+        expected: code("  1  2  3  4  5", "  2  4  6  8 10", "  3  6  9 12 15", "  4  8 12 16 20", "  5 10 15 20 25"),
+        solution: code("for i in range(1, 6):", '    line = ""', "    for j in range(1, 6):", '        line += f"{i * j:>3}"', "    print(line)"),
+        tests: [
+          { type: "stdoutEquals", name: "Таблиця правильна", value: "  1  2  3  4  5\n  2  4  6  8 10\n  3  6  9 12 15\n  4  8 12 16 20\n  5 10 15 20 25", normalize: "strict" },
+          { type: "codeRegex", name: "Вкладений цикл", pattern: "for\\s+\\w+\\s+in\\s+range[^\\n]*:\\s*\\n[\\s\\S]*\\n\\s+for\\s+\\w+\\s+in\\s+range" },
+          { type: "codeIncludes", name: "Вирівнювання :>3", value: ":>3}", checkRaw: true }
+        ]
+      },
+
+      {
+        title: "🔺 Ялинка з зірочок",
+        xp: 160,
+        kind: "practice",
+        difficulty: "Senior",
+        theory: `
+          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Малюємо формули</h2>
+          <p>У рядку номер <code>i</code> (від 1) ялинки висотою <code>h</code>: <code>h - i</code> пробілів і <code>2 * i - 1</code> зірочок.</p>
+        `,
+        desc: `
+          <div class="task-main"><p>Намалюй ялинку висотою 4 і стовбур.</p></div>
+          <div class="task-condition"><b>Умова:</b> <code>h = 4</code>. Для <code>i</code> від 1 до <code>h</code> виведи <code>" " * (h - i) + "*" * (2 * i - 1)</code>. Потім виведи стовбур: <code>" " * (h - 1) + "|"</code>.</div>
+        `,
+        hint: code("for i in range(1, h + 1):", '    print(" " * (h - i) + "*" * (2 * i - 1))'),
+        expected: code("   *", "  ***", " *****", "*******", "   |"),
+        solution: code("h = 4", "for i in range(1, h + 1):", '    print(" " * (h - i) + "*" * (2 * i - 1))', 'print(" " * (h - 1) + "|")'),
+        tests: [
+          { type: "stdoutEquals", name: "Ялинка правильна", value: "   *\n  ***\n *****\n*******\n   |", normalize: "strict" },
+          { type: "codeRegex", name: "Цикл до h", pattern: "range\\s*\\(\\s*1\\s*,\\s*h\\s*\\+\\s*1\\s*\\)" },
+          { type: "codeCountIncludes", name: "Не більше двох print", value: "print(", max: 2 }
+        ]
+      },
+
+      {
+        title: "🧱 Прості числа: for-else",
+        xp: 170,
+        kind: "practice",
+        difficulty: "Senior",
+        theory: `
+          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Блок else у циклі</h2>
+          <p>У Python цикл може мати <code>else</code>: він виконується, якщо цикл завершився <b>без</b> <code>break</code>. Це ідеально для пошуку: «перебрали всіх дільників і жодного не знайшли».</p>
+          <div class="code-box">for d in range(2, n):<br>    if n % d == 0:<br>        break<br>else:<br>    print(n, "просте")</div>
+        `,
+        desc: `
+          <div class="task-main"><p>Виведи всі прості числа до 50 в один рядок.</p></div>
+          <div class="task-condition"><b>Умова:</b> Для кожного <code>n</code> від 2 до 50 перевір дільники від 2 до <code>n - 1</code>. Використай <code>break</code> і <code>else</code> циклу. Прості числа виводь через пробіл: <code>print(n, end=" ")</code>.</div>
+        `,
+        hint: code("for n in range(2, 51):", "    for d in range(2, n):", "        if n % d == 0:", "            break", "    else:", '        print(n, end=" ")'),
+        expected: `2 3 5 7 11 13 17 19 23 29 31 37 41 43 47`,
+        solution: code("for n in range(2, 51):", "    for d in range(2, n):", "        if n % d == 0:", "            break", "    else:", '        print(n, end=" ")'),
+        tests: [
+          { type: "stdoutEquals", name: "Прості числа", value: "2 3 5 7 11 13 17 19 23 29 31 37 41 43 47" },
+          { type: "codeIncludes", name: "break", value: "break" },
+          { type: "codeRegex", name: "else циклу", pattern: "\\n(\\s*)for\\s[^\\n]*\\n[\\s\\S]*?\\n\\1else\\s*:" }
+        ]
+      },
+
+      {
+        title: "💎 Досконалі числа",
+        xp: 180,
+        kind: "practice",
+        difficulty: "Senior",
+        theory: `
+          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Сума дільників</h2>
+          <p><b>Досконале</b> число дорівнює сумі своїх дільників, менших за нього: 6 = 1 + 2 + 3.</p>
+        `,
+        desc: `
+          <div class="task-main"><p>Знайди всі досконалі числа до 1000.</p></div>
+          <div class="task-condition"><b>Умова:</b> Для кожного <code>n</code> від 2 до 999 порахуй суму дільників від 1 до <code>n // 2</code>. Якщо сума дорівнює <code>n</code> — виведи <code>f"{n} — досконале"</code>.</div>
+        `,
+        hint: code("for n in range(2, 1000):", "    total = 0", "    for d in range(1, n // 2 + 1):", "        if n % d == 0:", "            total += d"),
+        expected: code("6 — досконале", "28 — досконале", "496 — досконале"),
+        solution: code("for n in range(2, 1000):", "    total = 0", "    for d in range(1, n // 2 + 1):", "        if n % d == 0:", "            total += d", "    if total == n:", '        print(f"{n} — досконале")'),
+        tests: [
+          { type: "stdoutEquals", name: "Вивід правильний", value: "6 — досконале\n28 — досконале\n496 — досконале" },
+          { type: "codeIncludes", name: "Перевірка дільника", value: "% d == 0" },
+          { type: "codeCountIncludes", name: "Два цикли", value: "for ", min: 2 }
+        ]
+      },
+
+      {
+        title: "🥤 FizzBuzz",
+        xp: 190,
+        kind: "practice",
+        difficulty: "Senior",
+        theory: `
+          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Класична задача співбесід</h2>
+          <p>Порядок умов важливий: спочатку перевіряй найсуворішу (ділиться і на 3, і на 5).</p>
+        `,
+        desc: `
+          <div class="task-main"><p>Числа від 1 до 15 з заміною.</p></div>
+          <div class="task-condition"><b>Умова:</b> Для чисел від 1 до 15: якщо ділиться на 3 і 5 — <code>FizzBuzz</code>, лише на 3 — <code>Fizz</code>, лише на 5 — <code>Buzz</code>, інакше саме число. Виведи все в один рядок через пробіл.</div>
+        `,
+        hint: code("for n in range(1, 16):", "    if n % 15 == 0:", '        word = "FizzBuzz"'),
+        expected: `1 2 Fizz 4 Buzz Fizz 7 8 Fizz Buzz 11 Fizz 13 14 FizzBuzz`,
+        solution: code('result = ""', "for n in range(1, 16):", "    if n % 15 == 0:", '        word = "FizzBuzz"', "    elif n % 3 == 0:", '        word = "Fizz"', "    elif n % 5 == 0:", '        word = "Buzz"', "    else:", "        word = str(n)", '    result += word + " "', "print(result.strip())"),
+        tests: [
+          { type: "stdoutEquals", name: "Вивід правильний", value: "1 2 Fizz 4 Buzz Fizz 7 8 Fizz Buzz 11 Fizz 13 14 FizzBuzz" },
+          { type: "codeRegex", name: "Цикл 1..15", pattern: "range\\s*\\(\\s*1\\s*,\\s*16\\s*\\)" },
+          { type: "codeIncludesAll", name: "Перевірки ділення", values: ["% 3", "% 5"] }
+        ]
+      },
+
+      {
+        title: "🔢 Сума всіх цифр",
+        xp: 200,
+        kind: "practice",
+        difficulty: "Senior",
+        theory: `
+          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Число як рядок</h2>
+          <p>Щоб перебрати цифри числа, перетвори його на рядок: <code>for d in str(n)</code>, а кожну цифру — назад у число: <code>int(d)</code>.</p>
+        `,
+        desc: `
+          <div class="task-main"><p>Яка сума всіх цифр усіх чисел від 1 до 100?</p></div>
+          <div class="task-condition"><b>Умова:</b> Двома вкладеними циклами порахуй суму цифр усіх чисел від 1 до 100 і виведи <code>f"Сума цифр: {total}"</code>.</div>
+        `,
+        hint: code("for n in range(1, 101):", "    for d in str(n):", "        total += int(d)"),
+        expected: `Сума цифр: 901`,
+        solution: code("total = 0", "for n in range(1, 101):", "    for d in str(n):", "        total += int(d)", 'print(f"Сума цифр: {total}")'),
+        tests: [
+          { type: "stdoutEquals", name: "Вивід правильний", value: "Сума цифр: 901" },
+          { type: "codeIncludesAll", name: "str() та int()", values: ["str(n)", "int(d)"] }
+        ]
+      },
+
+      {
+        title: "📐 Піфагорові трійки",
+        xp: 210,
+        kind: "practice",
+        difficulty: "Senior",
+        theory: `
+          <h2 style="color: #0ea5e9; font-size: 18px; margin-bottom: 10px;">Три вкладені цикли</h2>
+          <p>Щоб не повторювати трійки, внутрішні цикли починай з попереднього значення: <code>for b in range(a + 1, ...)</code>.</p>
+        `,
+        desc: `
+          <div class="task-main"><p>Знайди всі трійки <code>a &lt; b &lt; c ≤ 20</code>, де <code>a² + b² = c²</code>.</p></div>
+          <div class="task-condition"><b>Умова:</b> Виведи кожну трійку у форматі <code>3, 4, 5</code>, а потім <code>f"Знайдено: {count}"</code>.</div>
+        `,
+        hint: code("for a in range(1, 21):", "    for b in range(a + 1, 21):", "        for c in range(b + 1, 21):", "            if a * a + b * b == c * c:"),
+        expected: code("3, 4, 5", "5, 12, 13", "6, 8, 10", "8, 15, 17", "9, 12, 15", "12, 16, 20", "Знайдено: 6"),
+        solution: code("count = 0", "for a in range(1, 21):", "    for b in range(a + 1, 21):", "        for c in range(b + 1, 21):", "            if a * a + b * b == c * c:", '                print(f"{a}, {b}, {c}")', "                count += 1", 'print(f"Знайдено: {count}")'),
+        tests: [
+          { type: "stdoutEquals", name: "Вивід правильний", value: "3, 4, 5\n5, 12, 13\n6, 8, 10\n8, 15, 17\n9, 12, 15\n12, 16, 20\nЗнайдено: 6" },
+          { type: "codeCountIncludes", name: "Три цикли", value: "for ", min: 3 },
+          { type: "codeRegex", name: "b починається з a + 1", pattern: "range\\s*\\(\\s*a\\s*\\+\\s*1" }
+        ]
+      },
+
+      {
+        title: "🎯 Підсумкова 1: Шахова дошка",
+        xp: 260,
+        kind: "quiz",
+        difficulty: "Senior",
+        theory: `
+          <h2 style="color: #f59e0b; font-size: 18px; margin-bottom: 10px;">Контрольна</h2>
+          <p>Колір клітинки залежить від парності суми номерів рядка і стовпчика.</p>
+        `,
+        desc: `
+          <div class="task-main"><p>Намалюй шахову дошку 5×5.</p></div>
+          <div class="task-condition"><b>Умова:</b> Клітинка <code>(row, col)</code> — <code>"#"</code>, якщо <code>(row + col) % 2 == 0</code>, інакше <code>"."</code>. Кожен рядок виведи окремо (символи без пробілів).</div>
+        `,
+        hint: code("for row in range(5):", '    line = ""', "    for col in range(5):"),
+        expected: code("#.#.#", ".#.#.", "#.#.#", ".#.#.", "#.#.#"),
+        solution: code("for row in range(5):", '    line = ""', "    for col in range(5):", "        if (row + col) % 2 == 0:", '            line += "#"', "        else:", '            line += "."', "    print(line)"),
+        tests: [
+          { type: "stdoutEquals", name: "Дошка правильна", value: "#.#.#\n.#.#.\n#.#.#\n.#.#.\n#.#.#" },
+          { type: "codeIncludes", name: "Парність суми", value: "(row + col) % 2" }
+        ]
+      },
+
+      {
+        title: "🎯 Підсумкова 2: Трикутник Паскаля",
+        xp: 280,
+        kind: "quiz",
+        difficulty: "Senior",
+        theory: `
+          <h2 style="color: #f59e0b; font-size: 18px; margin-bottom: 10px;">Контрольна</h2>
+          <p>Елемент рядка <code>n</code> на позиції <code>k</code> можна рахувати послідовно: <code>c = c * (n - k) // (k + 1)</code>, починаючи з <code>c = 1</code>.</p>
+        `,
+        desc: `
+          <div class="task-main"><p>Виведи перші 6 рядків трикутника Паскаля.</p></div>
+          <div class="task-condition"><b>Умова:</b> Для <code>n</code> від 0 до 5 обчисли числа рядка формулою з теорії і виведи їх через пробіл.</div>
+        `,
+        hint: code("for n in range(6):", "    c = 1", '    line = ""', "    for k in range(n + 1):", '        line += str(c) + " "', "        c = c * (n - k) // (k + 1)"),
+        expected: code("1", "1 1", "1 2 1", "1 3 3 1", "1 4 6 4 1", "1 5 10 10 5 1"),
+        solution: code("for n in range(6):", "    c = 1", '    line = ""', "    for k in range(n + 1):", '        line += str(c) + " "', "        c = c * (n - k) // (k + 1)", "    print(line.strip())"),
+        tests: [
+          { type: "stdoutEquals", name: "Трикутник правильний", value: "1\n1 1\n1 2 1\n1 3 3 1\n1 4 6 4 1\n1 5 10 10 5 1" },
+          { type: "codeIncludes", name: "Формула", value: "// (k + 1)" }
+        ]
+      },
+
+      {
+        title: "🐉 БОС (Senior): Календар місяця",
+        xp: 1500,
+        kind: "boss",
+        difficulty: "Senior",
+        theory: `
+          <h2 style="color: #ef4444; font-size: 18px; margin-bottom: 10px;">Фінальний іспит Senior</h2>
+          <p>Календар — це сітка 7 стовпчиків. Перший день місяця зсунутий на номер його дня тижня (Пн = 0).</p>
+        `,
+        desc: `
+          <div class="task-main"><p>Надрукуй календар жовтня 2026 року (1 жовтня — четвер).</p></div>
+          <div class="task-condition">
+            <b>Умови місії:</b><br>
+            1. <code>days = 31</code>, <code>start = 3</code> (зсув: четвер).<br>
+            2. Виведи заголовок <code>"Пн Вт Ср Чт Пт Сб Нд"</code>.<br>
+            3. Кожна клітинка має ширину 2 (<code>f"{day:>2}"</code>, порожня — <code>"  "</code>), клітинки розділені одним пробілом.<br>
+            4. Після кожної 7-ї клітинки починай новий рядок. Останній рядок виведи, навіть якщо він неповний.
+          </div>
+        `,
+        hint: code('line = "   " * start', "cells = start", "for day in range(1, days + 1):", '    line += f"{day:>2} "', "    cells += 1", "    if cells % 7 == 0:", "        print(line.rstrip())", '        line = ""'),
+        expected: code("Пн Вт Ср Чт Пт Сб Нд", "          1  2  3  4", " 5  6  7  8  9 10 11", "12 13 14 15 16 17 18", "19 20 21 22 23 24 25", "26 27 28 29 30 31"),
+        solution: code(
+          "days = 31",
+          "start = 3",
+          'print("Пн Вт Ср Чт Пт Сб Нд")',
+          'line = "   " * start',
+          "cells = start",
+          "for day in range(1, days + 1):",
+          '    line += f"{day:>2} "',
+          "    cells += 1",
+          "    if cells % 7 == 0:",
+          "        print(line.rstrip())",
+          '        line = ""',
+          "if line:",
+          "    print(line.rstrip())"
+        ),
+        tests: [
+          { type: "stdoutEquals", name: "Календар правильний", value: "Пн Вт Ср Чт Пт Сб Нд\n          1  2  3  4\n 5  6  7  8  9 10 11\n12 13 14 15 16 17 18\n19 20 21 22 23 24 25\n26 27 28 29 30 31", normalize: "soft" },
+          { type: "codeRegex", name: "Цикл по днях", pattern: "for\\s+\\w+\\s+in\\s+range\\s*\\(\\s*1\\s*,\\s*days\\s*\\+\\s*1\\s*\\)" },
+          { type: "codeIncludes", name: "Перенос після 7 клітинок", value: "% 7 == 0" }
         ]
       }
     ]
