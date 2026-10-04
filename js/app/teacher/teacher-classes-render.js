@@ -5,35 +5,19 @@ window.App.teacherClassesRender = (function () {
 
   function create(deps) {
 const {
-  state,
-  modules = [],
-  tasksByModule = {},
-  getActiveClass = () => null,
-  getActiveStudent = () => null,
-  getStudentProgress = () => ({}),
   getStudentXP = () => 0,
   getStudentAttempts = () => 0,
   getStudentCompletedCount = () => 0,
-  getStudentAssignmentsMarkup = () => "",
-  getStudentAssignmentCount = () => 0,
   getActiveStudents = () => [],
-  getActiveClassCode = () => "",
-  getActiveStudentId = () => "",
-  getCurrentView = () => "list",
 
   getCourseAccessTree = () => [],
   getModuleAccessState = () => "inherit",
   getTaskAccessState = () => "inherit",
-  countStudentChangedTasks = () => 0,
   isStudentTaskDone = () => false,
-  getStudentModuleProgress = () => ({ total: 0, done: 0, completed: false }),
 
   getClassModuleAccessState = () => "inherit",
   getClassTaskAccessState = () => "inherit",
-  countClassChangedTasks = () => 0,
-isAccessCourseOpen = () => false,
-isAccessModuleOpen = () => false,
-isClassFullyUnlocked = () => false
+  isClassFullyUnlocked = () => false
 } = deps;
     function escapeHtml(str) {
       return String(str || "")
@@ -56,96 +40,10 @@ isClassFullyUnlocked = () => false
 
 
 
-    function renderAccessSelect(attrs, currentValue) {
-  const attrString = Object.entries(attrs)
-    .filter(([, value]) => value !== undefined && value !== null && value !== "")
-    .map(([key, value]) => `${key}="${escapeHtml(String(value))}"`)
-    .join(" ");
 
-  return `
-    <select class="teacher-access-select" ${attrString}>
-      <option value="auto" ${currentValue === "auto" ? "selected" : ""}>Авто</option>
-      <option value="unlocked" ${currentValue === "unlocked" ? "selected" : ""}>Відкрито</option>
-      <option value="locked" ${currentValue === "locked" ? "selected" : ""}>Закрито</option>
-    </select>
-  `;
-}
 
-function getAccessStateLabel(value) {
-  if (value === "unlocked") return "Відкрито";
-  if (value === "locked") return "Закрито";
-  return "Авто";
-}
 
-function getAccessChipClass(value) {
-  if (value === "unlocked") return "teacher-access-chip--open";
-  if (value === "locked") return "teacher-access-chip--locked";
-  return "teacher-access-chip--auto";
-}
 
-function getAccessChipLabel(value) {
-  if (value === "unlocked") return "Відкр";
-  if (value === "locked") return "Закр";
-  return "Авто";
-}
-
-function renderClassTaskChips(classRow, course, module) {
-  const levels = ["Junior", "Middle", "Senior"];
-
-  return `
-    <div class="teacher-access-levels">
-      ${levels.map((level) => {
-        const levelTasks = (module.tasks || []).filter(
-          (task) => String(task.taskDifficulty || "Junior") === level
-        );
-
-        if (!levelTasks.length) return "";
-
-        const levelLabel =
-          level === "Junior" ? "🟢 Junior" :
-          level === "Middle" ? "🟡 Middle" :
-          "🔴 Senior";
-
-        return `
-          <section class="teacher-access-level-block">
-            <div class="teacher-access-level-block__title">${levelLabel}</div>
-
-            <div class="teacher-access-chip-grid">
-              ${levelTasks.map((task) => {
-                const taskState = getClassTaskAccessState(
-                  classRow,
-                  task.courseId,
-                  task.moduleId,
-                  task.taskIndex
-                );
-
-                const taskNo = Number(task.taskIndex) + 1;
-                const fullTitle = `${taskNo}. ${task.taskTitle}`;
-                const fullState = getAccessStateLabel(taskState);
-
-                return `
-                  <button
-                    type="button"
-                    class="teacher-access-chip ${getAccessChipClass(taskState)}"
-                    data-class-task-chip="1"
-                    data-course-id="${escapeHtml(task.courseId)}"
-                    data-module-id="${escapeHtml(task.moduleId)}"
-                    data-task-index="${escapeHtml(String(task.taskIndex))}"
-                    data-current-state="${escapeHtml(taskState)}"
-                    title="${escapeHtml(fullTitle)} — ${escapeHtml(fullState)}. Натисни, щоб змінити."
-                    aria-label="${escapeHtml(fullTitle)} — ${escapeHtml(fullState)}"
-                  >
-                    ${taskNo} · ${getAccessChipLabel(taskState)}
-                  </button>
-                `;
-              }).join("")}
-            </div>
-          </section>
-        `;
-      }).join("")}
-    </div>
-  `;
-}
 
     function calcClassStats(students) {
       const count = students.length;
@@ -168,76 +66,6 @@ function renderClassTaskChips(classRow, course, module) {
         needHelp
       };
     }
-    function renderStudentTaskChips(student, course, module) {
-  const levels = ["Junior", "Middle", "Senior"];
-
-  return `
-    <div class="teacher-access-levels">
-      ${levels.map((level) => {
-        const levelTasks = (module.tasks || []).filter(
-          (task) => String(task.taskDifficulty || "Junior") === level
-        );
-
-        if (!levelTasks.length) return "";
-
-        const doneCount = levelTasks.filter((task) =>
-          isStudentTaskDone(student, task.courseId, task.moduleId, task.taskIndex)
-        ).length;
-
-        const levelLabel =
-          level === "Junior" ? "🟢 Junior" :
-          level === "Middle" ? "🟡 Middle" :
-          "🔴 Senior";
-
-        return `
-          <section class="teacher-access-level-block">
-            <div class="teacher-access-level-block__title">
-              ${levelLabel} · ${doneCount}/${levelTasks.length} виконано
-            </div>
-
-            <div class="teacher-access-chip-grid">
-              ${levelTasks.map((task) => {
-                const taskState = getTaskAccessState(
-                  student,
-                  task.courseId,
-                  task.moduleId,
-                  task.taskIndex
-                );
-
-                const done = isStudentTaskDone(
-                  student,
-                  task.courseId,
-                  task.moduleId,
-                  task.taskIndex
-                );
-
-                const taskNo = Number(task.taskIndex) + 1;
-                const fullTitle = `${taskNo}. ${task.taskTitle}`;
-                const fullState = getAccessStateLabel(taskState);
-
-                return `
-                  <button
-                    type="button"
-                    class="teacher-access-chip ${getAccessChipClass(taskState)} ${done ? "teacher-access-chip--done" : "teacher-access-chip--pending"}"
-                    data-student-task-chip="1"
-                    data-course-id="${escapeHtml(task.courseId)}"
-                    data-module-id="${escapeHtml(task.moduleId)}"
-                    data-task-index="${escapeHtml(String(task.taskIndex))}"
-                    data-current-state="${escapeHtml(taskState)}"
-                    title="${escapeHtml(fullTitle)} — ${done ? "Виконано" : "Не виконано"} — ${escapeHtml(fullState)}. Натисни, щоб змінити."
-                    aria-label="${escapeHtml(fullTitle)} — ${done ? "Виконано" : "Не виконано"} — ${escapeHtml(fullState)}"
-                  >
-                    ${taskNo} ${done ? "✓" : "○"} · ${getAccessChipLabel(taskState)}
-                  </button>
-                `;
-              }).join("")}
-            </div>
-          </section>
-        `;
-      }).join("")}
-    </div>
-  `;
-}
 function renderStudentModuleAccessGroup(student, course, module) {
   const tasks = module.tasks || [];
   if (!tasks.length) return "";
@@ -353,13 +181,6 @@ function renderStudentModuleAccessGroup(student, course, module) {
 }
 
 
-function countCourseChangedItems(classRow, course) {
-  return (course.modules || []).reduce((sum, module) => {
-    const moduleChanged = getClassModuleAccessState(classRow, module.courseId, module.moduleId) !== "auto" ? 1 : 0;
-    const taskChanged = countClassChangedTasks(classRow, module);
-    return sum + moduleChanged + taskChanged;
-  }, 0);
-}
 
 function renderClassModuleAccessGroup(classRow, course, module) {
   const tasks = module.tasks || [];
@@ -695,13 +516,10 @@ return {
     return {
       escapeHtml,
       formatDate,
-      renderAccessSelect,
-      getAccessStateLabel,
       calcClassStats,
       renderStudentModuleAccessGroup,
-renderClassModuleAccessGroup,
-renderClassAccessBlock,
-renderNeedHelpBlock
+      renderClassAccessBlock,
+      renderNeedHelpBlock
     };
   }
 
