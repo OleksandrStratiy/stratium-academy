@@ -249,52 +249,45 @@ window.App.teacherClassesEvents = (function () {
 
     // Сторінка класу: список учнів, фільтри, навігація, загальний доступ.
     function bindClassDetailsEvents(root) {
-      document.querySelectorAll("[data-student-open]").forEach((btn) => {
-        document.querySelectorAll("[data-student-remove]").forEach((btn) => {
-          btn.addEventListener("click", async (e) => {
-            e.stopPropagation();
+      root.querySelectorAll("[data-student-remove]").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
 
-            const studentId = btn.getAttribute("data-student-remove");
-            const student = ctx.activeStudents.find((item) => item.id === studentId);
-            if (!student) return;
+          const studentId = btn.getAttribute("data-student-remove");
+          const student = ctx.activeStudents.find((item) => item.id === studentId);
+          if (!student) return;
 
-            if (!confirm(`Видалити учня "${student.full_name || "Без імені"}" з класу?`)) return;
+          if (!confirm(`Видалити учня "${student.full_name || "Без імені"}" з класу?`)) return;
 
-            btn.disabled = true;
+          btn.disabled = true;
 
-            try {
-              await removeStudentFromClass(studentId);
+          try {
+            await removeStudentFromClass(studentId);
 
-              ctx.activeStudents = ctx.activeStudents.filter((item) => item.id !== studentId);
+            ctx.activeStudents = ctx.activeStudents.filter((item) => item.id !== studentId);
 
-              if (ctx.activeStudentId === studentId) {
-                ctx.activeStudentId = null;
-                ctx.viewMode = "details";
-              }
-
-              const cls = ctx.teacherClasses.find((item) => item.code === ctx.activeClassCode);
-              if (cls) {
-                cls.student_count = Math.max(0, Number(cls.student_count || 0) - 1);
-              }
-
-              state.user = state.user || {};
-              state.user.teacherClasses = ctx.teacherClasses;
-              save?.();
-
-              toast("🗑️ Учня прибрано з класу");
-              await refreshAndRender();
-            } catch (err) {
-              console.error(err);
-              toast("❌ Не вдалося прибрати учня з класу");
-            } finally {
-              btn.disabled = false;
+            if (ctx.activeStudentId === studentId) {
+              ctx.activeStudentId = null;
+              ctx.viewMode = "details";
             }
-          });
-        });
-        btn.addEventListener("click", async () => {
-          ctx.activeStudentId = btn.getAttribute("data-student-open");
-          ctx.viewMode = "student";
-          await refreshAndRender();
+
+            const cls = ctx.teacherClasses.find((item) => item.code === ctx.activeClassCode);
+            if (cls) {
+              cls.student_count = Math.max(0, Number(cls.student_count || 0) - 1);
+            }
+
+            state.user = state.user || {};
+            state.user.teacherClasses = ctx.teacherClasses;
+            save?.();
+
+            toast("🗑️ Учня прибрано з класу");
+            await refreshAndRender();
+          } catch (err) {
+            console.error(err);
+            toast("❌ Не вдалося прибрати учня з класу");
+          } finally {
+            btn.disabled = false;
+          }
         });
       });
 
@@ -351,38 +344,6 @@ window.App.teacherClassesEvents = (function () {
           await refreshAndRender();
         };
       }
-
-      const backToClassBtn = $("teacherBackToClassBtn");
-
-      if (backToClassBtn) {
-        backToClassBtn.onclick = async () => {
-          ctx.viewMode = "details";
-          await refreshAndRender();
-        };
-      }
-
-      root.querySelectorAll("[data-open-student]").forEach((item) => {
-        item.addEventListener("click", async () => {
-          const studentId = item.getAttribute("data-open-student") || "";
-          if (!studentId) return;
-
-          ctx.activeStudentId = studentId;
-          ctx.viewMode = "student";
-          await refreshAndRender();
-        });
-
-        item.addEventListener("keydown", async (e) => {
-          if (e.key !== "Enter" && e.key !== " ") return;
-          e.preventDefault();
-
-          const studentId = item.getAttribute("data-open-student") || "";
-          if (!studentId) return;
-
-          ctx.activeStudentId = studentId;
-          ctx.viewMode = "student";
-          await refreshAndRender();
-        });
-      });
 
       root.querySelectorAll("[data-open-student]").forEach((item) => {
         item.addEventListener("click", async () => {

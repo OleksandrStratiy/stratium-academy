@@ -104,12 +104,11 @@ window.App.lessonRun = (function () {
           failedTests,
           code: getCodeMirror().getValue()
         });
+        const runtimeFriendly = !run.exec?.ok ? explainPythonError(run.exec?.error || "") : null;
         const alreadyDone = !!completionState(id);
         if (!alreadyDone) {
           const n = incAttempts(id);
           $("badgeAttempts").textContent = `Спроби: ${Math.min(n, 10)}/10`;
-
-          const runtimeFriendly = !run.exec?.ok ? explainPythonError(run.exec?.error || "") : null;
 
           if (n >= 10 && !isSpoiled(id)) {
             if (solBox) {
