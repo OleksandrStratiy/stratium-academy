@@ -52,7 +52,7 @@ window.App.sidebar = (function () {
       // 2. Рендеримо HTML сайдбару
       sb.innerHTML = `
         <div style="padding: 0 10px; text-align: center;">
-          <div style="font-size: 16px; font-weight: 900; color: var(--text); margin-bottom: 4px;">${state?.user?.name || "Гість"}</div>
+          <div style="font-size: 16px; font-weight: 900; color: var(--text); margin-bottom: 4px;">${escapeHtml(state?.user?.name || "Гість")}</div>
           ${roleBadge}
         </div>
 
